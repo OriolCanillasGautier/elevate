@@ -32,12 +32,19 @@ import NumberColumn = ActivityColumns.NumberColumn;
 import BaseUserSettings = UserSettings.BaseUserSettings;
 import { FieldInfo, Parser as Json2CsvParser } from "json2csv";
 
+enum DataFilter {
+  POWER_METER = "powerMeter",
+  HEART_RATE = "heartRate",
+  TRAINER = "trainer"
+}
+
 class Preferences {
   constructor(
     public fromDate: string = null,
     public toDate: string = null,
     public activityName: string = "",
     public sports: ElevateSport[] = [],
+    public dataFilters: DataFilter[] = [],
     public sort: Sort = { active: null, direction: null },
     public pageIndex: number = 0,
     public pageSize: number = 10
@@ -55,6 +62,12 @@ export class ActivitiesComponent implements OnInit, OnDestroy {
   private static readonly ACTIVITY_SEARCH_DEBOUNCE_TIME: number = 500;
 
   public readonly ColumnType = ActivityColumns.ColumnType;
+  public readonly DataFilter = DataFilter;
+  public readonly DATA_FILTER_OPTIONS = [
+    { value: DataFilter.POWER_METER, label: "Power Meter", icon: "flash_on" },
+    { value: DataFilter.HEART_RATE, label: "Heart Rate", icon: "favorite" },
+    { value: DataFilter.TRAINER, label: "Trainer / Indoor", icon: "fitness_center" }
+  ];
 
   @ViewChild(MatPaginator, { static: true })
   public matPaginator: MatPaginator;
@@ -285,6 +298,24 @@ export class ActivitiesComponent implements OnInit, OnDestroy {
     this.activityService
       .find(query, sort)
       .then((activities: Activity[]) => {
+        // Apply data availability filters (post-query client-side filtering)
+        if (this.preferences.dataFilters.length > 0) {
+          activities = activities.filter(activity => {
+            return this.preferences.dataFilters.every(filter => {
+              switch (filter) {
+                case DataFilter.POWER_METER:
+                  return activity.hasPowerMeter && activity.stats?.power?.avg > 0;
+                case DataFilter.HEART_RATE:
+                  return activity.stats?.heartRate?.avg > 0;
+                case DataFilter.TRAINER:
+                  return activity.trainer;
+                default:
+                  return true;
+              }
+            });
+          });
+        }
+
         this.hasEmptyResults = activities.length === 0;
 
         // Apply paging
@@ -386,6 +417,12 @@ export class ActivitiesComponent implements OnInit, OnDestroy {
   }
 
   public onDateToDateChange(): void {
+    this.persistPreferencesInUrl();
+    this.findAndDisplayActivities();
+  }
+
+  public onDataFiltersChange(): void {
+    this.resetPageIndexPreference();
     this.persistPreferencesInUrl();
     this.findAndDisplayActivities();
   }

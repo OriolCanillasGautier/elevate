@@ -130,6 +130,9 @@
         <ng-template matTabContent>
           <app-activity-view-stats [measureSystem]="userSettings.systemUnit"
                                    [activity]="activity"></app-activity-view-stats>
+          <app-activity-view-power-balance *ngIf="hasCyclingPowerMeter"
+                                           [activity]="activity">
+          </app-activity-view-power-balance>
         </ng-template>
       </mat-tab>
 
@@ -163,6 +166,15 @@
                                          [streams]="streams"></app-activity-view-best-splits>
         </ng-template>
       </mat-tab>
+
+      <mat-tab label="FTP Estimate" *ngIf="hasCyclingPowerMeter">
+        <ng-template matTabContent>
+          <app-activity-view-ftp-estimate
+            [activity]="activity">
+          </app-activity-view-ftp-estimate>
+        </ng-template>
+      </mat-tab>
+
     </mat-tab-group>
 
   </mat-card-content>

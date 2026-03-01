@@ -91,6 +91,11 @@ export class ActivityViewComponent implements OnInit, OnDestroy {
   public displayGraph: boolean;
   public displayFlags: boolean;
 
+  /** True when the current activity is a cycling ride with a real power meter */
+  public get hasCyclingPowerMeter(): boolean {
+    return this.activity?.hasPowerMeter === true && Activity.isRide(this.activity?.type);
+  }
+
   /**
    * Displays debug "on map statistics" activity data on graph bound selection
    */

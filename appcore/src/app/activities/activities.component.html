@@ -43,6 +43,28 @@
       </button>
     </mat-form-field>
     <span fxFlex="1"></span>
+    <mat-form-field fxFlex="14">
+      <mat-select multiple (selectionChange)="onDataFiltersChange()"
+                  [(ngModel)]="preferences.dataFilters"
+                  placeholder="Data filters"
+                  aria-label="Filter by available data"
+                  name="dataFilters">
+        <mat-option *ngFor="let opt of DATA_FILTER_OPTIONS"
+                    [value]="opt.value"
+                    [matTooltip]="'Only show activities with ' + opt.label + ' data'">
+          <mat-icon fontSet="material-icons-outlined" inline="true">{{opt.icon}}</mat-icon>
+          {{opt.label}}
+        </mat-option>
+      </mat-select>
+      <button *ngIf="preferences.dataFilters.length"
+              (click)="preferences.dataFilters=[]; onDataFiltersChange(); $event.stopPropagation();" color="primary"
+              aria-label="Clear"
+              mat-icon-button matSuffix
+              matTooltip="Remove data filters">
+        <mat-icon fontSet="material-icons-outlined">close</mat-icon>
+      </button>
+    </mat-form-field>
+    <span fxFlex="1"></span>
     <mat-form-field fxFlex="8">
       <input (dateChange)="onDateToDateChange()"
              [(ngModel)]="preferences.fromDate"

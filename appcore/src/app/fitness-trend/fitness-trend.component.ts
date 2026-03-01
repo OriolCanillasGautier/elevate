@@ -18,6 +18,8 @@ import { LoggerService } from "../shared/services/logging/logger.service";
 import { Subscription } from "rxjs";
 import { AppService } from "../shared/services/app-service/app.service";
 import { ActivityService } from "../shared/services/activity/activity.service";
+import { FtpEstimationService } from "./shared/services/ftp-estimation.service";
+import { FtpTrendPoint } from "@elevate/shared/models/ftp-estimate.model";
 
 @Component({
   selector: "app-fitness-trend",
@@ -67,6 +69,10 @@ export class FitnessTrendComponent implements OnInit, OnDestroy {
   public hasActivities: boolean = null; // Can be null: don't know yet true/false status on load
   public areActivitiesCompliant: boolean = null; // Can be null: don't know yet true/false status on load
   public historyChangesSub: Subscription;
+  public ftpTrendPoints: FtpTrendPoint[] = [];
+  public excludeTrainerRides: boolean = false;
+
+  public static readonly LS_EXCLUDE_TRAINER_FTP_KEY: string = "fitnessTrend_excludeTrainerFtp";
 
   constructor(
     @Inject(AppService) private readonly appService: AppService,
@@ -75,7 +81,8 @@ export class FitnessTrendComponent implements OnInit, OnDestroy {
     @Inject(FitnessService) private readonly fitnessService: FitnessService,
     @Inject(MatDialog) private readonly dialog: MatDialog,
     @Inject(MatSnackBar) private readonly snackBar: MatSnackBar,
-    @Inject(LoggerService) private readonly logger: LoggerService
+    @Inject(LoggerService) private readonly logger: LoggerService,
+    @Inject(FtpEstimationService) private readonly ftpEstimationService: FtpEstimationService
   ) {}
 
   public static provideLastPeriods(minDate: Date): LastPeriodModel[] {
@@ -261,6 +268,9 @@ export class FitnessTrendComponent implements OnInit, OnDestroy {
             this.lastFitnessActiveDate =
               lastDayFitnessTrendModel && lastDayFitnessTrendModel.date ? lastDayFitnessTrendModel.date : null;
 
+            // Load FTP trend data asynchronously
+            this.loadFtpTrend();
+
             return Promise.resolve();
           }
         },
@@ -435,6 +445,37 @@ export class FitnessTrendComponent implements OnInit, OnDestroy {
       JSON.stringify(this.fitnessTrendConfigModel)
     ); // Save config local
     this.reloadFitnessTrend();
+  }
+
+  public onExcludeTrainerToggle(checked: boolean): void {
+    this.excludeTrainerRides = checked;
+    localStorage.setItem(FitnessTrendComponent.LS_EXCLUDE_TRAINER_FTP_KEY, `${checked}`);
+    this.loadFtpTrend();
+  }
+
+  /**
+   * Load FTP trend data from the estimation service.
+   * Runs asynchronously so it doesn't block the main fitness trend rendering.
+   */
+  private loadFtpTrend(): void {
+    // Get athlete weight from the latest day's snapshot, fallback to default
+    const latestDay = _.findLast(this.fitnessTrend, d => d.athleteSnapshot != null);
+    const athleteWeight = latestDay?.athleteSnapshot?.athleteSettings?.weight || 70;
+
+    // Read trainer exclusion preference
+    const excludeTrainerPref = localStorage.getItem(FitnessTrendComponent.LS_EXCLUDE_TRAINER_FTP_KEY);
+    this.excludeTrainerRides = excludeTrainerPref === "true";
+
+    this.ftpEstimationService
+      .computeFtpTrend(athleteWeight, 90, 7, undefined, this.excludeTrainerRides, this.fitnessTrend)
+      .then((trendPoints: FtpTrendPoint[]) => {
+        this.ftpTrendPoints = trendPoints;
+        this.logger.debug(`FTP trend computed: ${trendPoints.length} data points`);
+      })
+      .catch(err => {
+        this.logger.error("Error loading FTP trend:", err);
+        this.ftpTrendPoints = [];
+      });
   }
 
   public ngOnDestroy(): void {

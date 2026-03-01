@@ -19,6 +19,8 @@ import { ActivityStatsService } from "./shared/activity-stats.service";
 import { ActivitySensorsService } from "./shared/activity-sensors.service";
 import { ActivityEditDialogComponent } from "./activity-edit/activity-edit-dialog.component";
 import { ActivityViewMapComponent } from "./activity-view-map/activity-view-map.component";
+import { ActivityViewPowerBalanceComponent } from "./activity-view-power-balance/activity-view-power-balance.component";
+import { ActivityViewFtpEstimateComponent } from "./activity-view-ftp-estimate/activity-view-ftp-estimate.component";
 
 PlotlyModule.plotlyjs = PlotlyJS;
 
@@ -36,7 +38,9 @@ PlotlyModule.plotlyjs = PlotlyJS;
     PeakChartComponent,
     ActivityViewSummaryStatsComponent,
     ActivityViewStatsComponent,
-    ActivityEditDialogComponent
+    ActivityEditDialogComponent,
+    ActivityViewPowerBalanceComponent,
+    ActivityViewFtpEstimateComponent
   ],
   providers: [ActivityViewService, ActivitySensorsService, ActivityStatsService, TimeInZonesService]
 })
