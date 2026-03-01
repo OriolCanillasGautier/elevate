@@ -48,7 +48,7 @@ class Preferences {
     public sort: Sort = { active: null, direction: null },
     public pageIndex: number = 0,
     public pageSize: number = 10
-  ) {}
+  ) { }
 }
 
 @Component({

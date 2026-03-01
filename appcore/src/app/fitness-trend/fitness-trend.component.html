@@ -50,41 +50,25 @@
   <mat-card-content>
     <div fxLayout="row" fxLayout.lt-lg="column" fxLayoutAlign="start start">
       <app-fitness-trend-inputs (eBikeRidesToggleChange)="onEBikeRidesToggleChange($event)"
-                                (estimatedPowerStressScoreToggleChange)="onEstimatedPowerStressScoreToggleChange($event)"
-                                (estimatedRunningStressScoreToggleChange)="onEstimatedRunningStressScoreChange($event)"
-                                (openFitnessTrendConfigRequest)="onOpenFitnessTrendConfig()"
-                                (periodViewedChange)="onPeriodViewedChange($event)"
-                                (powerMeterToggleChange)="onPowerMeterToggleChange($event)"
-                                (swimToggleChange)="onSwimToggleChange($event)"
-                                (trainingZonesToggleChange)="onTrainingZonesToggleChange($event)"
-                                [dateMax]="dateMax"
-                                [dateMin]="dateMin"
-                                [fitnessTrendConfigModel]="fitnessTrendConfigModel"
-                                [isEBikeRidesEnabled]="isEBikeRidesEnabled"
-                                [isPowerMeterEnabled]="isPowerMeterEnabled"
-                                [isSwimEnabled]="isSwimEnabled"
-                                [isTrainingZonesEnabled]="isTrainingZonesEnabled"
-                                [lastFitnessActiveDate]="lastFitnessActiveDate"
-                                [lastPeriodViewed]="lastPeriodViewed"
-                                [lastPeriods]="lastPeriods"
-                                [periodViewed]="periodViewed"
-                                fxFill
-                                fxFlex="45"
-                                fxLayout="column"
-                                fxLayoutAlign="start start">
+        (estimatedPowerStressScoreToggleChange)="onEstimatedPowerStressScoreToggleChange($event)"
+        (estimatedRunningStressScoreToggleChange)="onEstimatedRunningStressScoreChange($event)"
+        (openFitnessTrendConfigRequest)="onOpenFitnessTrendConfig()" (periodViewedChange)="onPeriodViewedChange($event)"
+        (powerMeterToggleChange)="onPowerMeterToggleChange($event)" (swimToggleChange)="onSwimToggleChange($event)"
+        (trainingZonesToggleChange)="onTrainingZonesToggleChange($event)" [dateMax]="dateMax" [dateMin]="dateMin"
+        [fitnessTrendConfigModel]="fitnessTrendConfigModel" [isEBikeRidesEnabled]="isEBikeRidesEnabled"
+        [isPowerMeterEnabled]="isPowerMeterEnabled" [isSwimEnabled]="isSwimEnabled"
+        [isTrainingZonesEnabled]="isTrainingZonesEnabled" [lastFitnessActiveDate]="lastFitnessActiveDate"
+        [lastPeriodViewed]="lastPeriodViewed" [lastPeriods]="lastPeriods" [periodViewed]="periodViewed" fxFill
+        fxFlex="45" fxLayout="column" fxLayoutAlign="start start">
       </app-fitness-trend-inputs>
 
       <app-fitness-trend-legend [isTrainingZonesEnabled]="isTrainingZonesEnabled" class="mat-subheading-2" fxFill
-                                fxFlex="55" fxLayout="row"
-                                fxLayoutAlign="end end"></app-fitness-trend-legend>
+        fxFlex="55" fxLayout="row" fxLayoutAlign="end end"></app-fitness-trend-legend>
 
     </div>
 
-    <app-fitness-trend-graph [dateMax]="dateMax"
-                             [dateMin]="dateMin"
-                             [fitnessTrend]="fitnessTrend"
-                             [isTrainingZonesEnabled]="isTrainingZonesEnabled"
-                             [periodViewed]="periodViewed">
+    <app-fitness-trend-graph [dateMax]="dateMax" [dateMin]="dateMin" [fitnessTrend]="fitnessTrend"
+      [isTrainingZonesEnabled]="isTrainingZonesEnabled" [periodViewed]="periodViewed">
     </app-fitness-trend-graph>
 
   </mat-card-content>
@@ -101,9 +85,7 @@
         Track how your FTP evolves over time, estimated from your regular cycling rides with a power meter.
       </span>
       <div fxLayout="row" fxLayoutAlign="end center" fxLayoutGap="8px">
-        <mat-slide-toggle
-          [checked]="excludeTrainerRides"
-          (change)="onExcludeTrainerToggle($event.checked)"
+        <mat-slide-toggle [checked]="excludeTrainerRides" (change)="onExcludeTrainerToggle($event.checked)"
           color="primary">
           Exclude indoor trainer
         </mat-slide-toggle>
@@ -120,11 +102,9 @@
     Fitness analysis table
   </mat-card-title>
   <mat-card-content>
-    <app-fitness-trend-table [fitnessTrendConfigModel]="fitnessTrendConfigModel"
-                             [fitnessTrend]="fitnessTrend"
-                             [isPowerMeterEnabled]="isPowerMeterEnabled"
-                             [isSwimEnabled]="isSwimEnabled"
-                             [isTrainingZonesEnabled]="isTrainingZonesEnabled">
+    <app-fitness-trend-table [fitnessTrendConfigModel]="fitnessTrendConfigModel" [fitnessTrend]="fitnessTrend"
+      [isPowerMeterEnabled]="isPowerMeterEnabled" [isSwimEnabled]="isSwimEnabled"
+      [isTrainingZonesEnabled]="isTrainingZonesEnabled">
     </app-fitness-trend-table>
   </mat-card-content>
 </mat-card>
