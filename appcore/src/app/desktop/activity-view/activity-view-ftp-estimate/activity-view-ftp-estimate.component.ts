@@ -3,10 +3,10 @@ import _ from "lodash";
 import { Activity } from "@elevate/shared/models/sync/activity.model";
 import { FtpEstimator } from "@elevate/shared/sync/compute/ftp-estimator";
 import {
-    ActivityFtpAnalysis,
-    ActivityFtpIndicator,
-    ActivityKeyPeak,
-    IndicatorTrust
+  ActivityFtpAnalysis,
+  ActivityFtpIndicator,
+  ActivityKeyPeak,
+  IndicatorTrust
 } from "@elevate/shared/models/ftp-estimate.model";
 
 /**
@@ -17,8 +17,8 @@ import {
  * what the ride suggests about their FTP.
  */
 @Component({
-    selector: "app-activity-view-ftp-estimate",
-    template: `
+  selector: "app-activity-view-ftp-estimate",
+  template: `
     <div class="ftp-estimate-container" *ngIf="hasPowerData; else noPowerData">
       <!-- Primary FTP estimate (NP-adjusted) -->
       <div class="primary-estimate" *ngIf="npIndicator">
@@ -81,8 +81,8 @@ import {
       </div>
     </ng-template>
   `,
-    styles: [
-        `
+  styles: [
+    `
       .ftp-estimate-container {
         padding: 16px 0;
       }
@@ -258,55 +258,55 @@ import {
         opacity: 0.6;
       }
     `
-    ]
+  ]
 })
 export class ActivityViewFtpEstimateComponent implements OnInit {
-    @Input()
-    public activity: Activity;
+  @Input()
+  public activity: Activity;
 
-    public hasPowerData: boolean;
-    public hasAnyPeak: boolean;
-    public analysis: ActivityFtpAnalysis | null;
-    public npIndicator: ActivityFtpIndicator | null;
-    public athleteWeight: number;
+  public hasPowerData: boolean;
+  public hasAnyPeak: boolean;
+  public analysis: ActivityFtpAnalysis | null;
+  public npIndicator: ActivityFtpIndicator | null;
+  public athleteWeight: number;
 
-    private maxPower: number;
+  private maxPower: number;
 
-    public ngOnInit(): void {
-        this.hasPowerData = this.activity?.hasPowerMeter && this.activity?.stats?.power?.avg > 0;
-        this.athleteWeight = this.activity?.athleteSnapshot?.athleteSettings?.weight || 0;
-        this.analysis = null;
-        this.npIndicator = null;
-        this.hasAnyPeak = (this.activity?.stats?.power?.peaks?.length || 0) > 0;
-        this.maxPower = 0;
+  public ngOnInit(): void {
+    this.hasPowerData = this.activity?.hasPowerMeter && this.activity?.stats?.power?.avg > 0;
+    this.athleteWeight = this.activity?.athleteSnapshot?.athleteSettings?.weight || 0;
+    this.analysis = null;
+    this.npIndicator = null;
+    this.hasAnyPeak = (this.activity?.stats?.power?.peaks?.length || 0) > 0;
+    this.maxPower = 0;
 
-        if (this.hasPowerData) {
-            this.analysis = FtpEstimator.estimateFromActivity(this.activity, this.athleteWeight);
+    if (this.hasPowerData) {
+      this.analysis = FtpEstimator.estimateFromActivity(this.activity, this.athleteWeight);
 
-            if (this.analysis) {
-                this.npIndicator = this.analysis.indicators.find(i => i.method === "np_based") || null;
+      if (this.analysis) {
+        this.npIndicator = this.analysis.indicators.find(i => i.method === "np_based") || null;
 
-                if (this.analysis.allPeaks?.length > 0) {
-                    this.maxPower = Math.max(...this.analysis.allPeaks.map(p => p.power));
-                }
-            }
+        if (this.analysis.allPeaks?.length > 0) {
+          this.maxPower = Math.max(...this.analysis.allPeaks.map(p => p.power));
         }
+      }
     }
+  }
 
-    public formatDuration(seconds: number): string {
-        if (seconds < 60) return `${seconds}s`;
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
-        if (s === 0) return `${m}min`;
-        return `${m}m${s}s`;
-    }
+  public formatDuration(seconds: number): string {
+    if (seconds < 60) return `${seconds}s`;
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    if (s === 0) return `${m}min`;
+    return `${m}m${s}s`;
+  }
 
-    public peakBarWidth(power: number): number {
-        if (this.maxPower <= 0) return 0;
-        return _.round((power / this.maxPower) * 100, 1);
-    }
+  public peakBarWidth(power: number): number {
+    if (this.maxPower <= 0) return 0;
+    return _.round((power / this.maxPower) * 100, 1);
+  }
 
-    public roundWkg(power: number): string {
-        return this.athleteWeight > 0 ? _.round(power / this.athleteWeight, 2).toFixed(2) : "—";
-    }
+  public roundWkg(power: number): string {
+    return this.athleteWeight > 0 ? _.round(power / this.athleteWeight, 2).toFixed(2) : "—";
+  }
 }

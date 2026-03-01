@@ -44,4 +44,4 @@ PlotlyModule.plotlyjs = PlotlyJS;
   ],
   providers: [ActivityViewService, ActivitySensorsService, ActivityStatsService, TimeInZonesService]
 })
-export class ActivityViewModule { }
+export class ActivityViewModule {}

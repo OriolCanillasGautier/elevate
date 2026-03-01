@@ -18,8 +18,8 @@ import { LeftRightBalanceAnalyzer } from "@elevate/shared/sync/compute/left-righ
  * Falls back gracefully for single-sided or non-power rides.
  */
 @Component({
-    selector: "app-activity-view-power-balance",
-    template: `
+  selector: "app-activity-view-power-balance",
+  template: `
     <div class="power-balance-container" *ngIf="analysis">
       <h3 class="mat-subheading-2">
         <mat-icon fontSet="material-icons-outlined" inline="true">balance</mat-icon>
@@ -126,8 +126,8 @@ import { LeftRightBalanceAnalyzer } from "@elevate/shared/sync/compute/left-righ
       </div>
     </div>
   `,
-    styles: [
-        `
+  styles: [
+    `
       .power-balance-container {
         padding: 16px 0;
       }
@@ -254,128 +254,128 @@ import { LeftRightBalanceAnalyzer } from "@elevate/shared/sync/compute/left-righ
         opacity: 0.6;
       }
     `
-    ]
+  ]
 })
 export class ActivityViewPowerBalanceComponent implements OnInit {
-    @Input()
-    public activity: Activity;
+  @Input()
+  public activity: Activity;
 
-    public analysis: PowerBalanceAnalysis | null;
-    public showUnavailable: boolean;
-    public consistencyPercent: number;
-    public chartData: any[];
-    public chartLayout: any;
-    public chartConfig: any;
+  public analysis: PowerBalanceAnalysis | null;
+  public showUnavailable: boolean;
+  public consistencyPercent: number;
+  public chartData: any[];
+  public chartLayout: any;
+  public chartConfig: any;
 
-    constructor(
-        @Inject(AppService) private readonly appService: AppService,
-        @Inject(PlotlyService) private readonly plotlyService: PlotlyService
-    ) {
-        this.analysis = null;
-        this.showUnavailable = false;
-        this.consistencyPercent = 0;
-        this.chartData = [];
-        this.chartLayout = {};
-        this.chartConfig = { displayModeBar: false, showTips: false, displaylogo: false };
+  constructor(
+    @Inject(AppService) private readonly appService: AppService,
+    @Inject(PlotlyService) private readonly plotlyService: PlotlyService
+  ) {
+    this.analysis = null;
+    this.showUnavailable = false;
+    this.consistencyPercent = 0;
+    this.chartData = [];
+    this.chartLayout = {};
+    this.chartConfig = { displayModeBar: false, showTips: false, displaylogo: false };
+  }
+
+  public ngOnInit(): void {
+    this.analyze();
+
+    if (this.analysis?.intervalData?.length > 0) {
+      this.buildChart();
     }
 
-    public ngOnInit(): void {
-        this.analyze();
+    this.appService.themeChanges$.subscribe(() => {
+      if (this.analysis?.intervalData?.length > 0) {
+        this.buildChart();
+      }
+    });
+  }
 
-        if (this.analysis?.intervalData?.length > 0) {
-            this.buildChart();
-        }
-
-        this.appService.themeChanges$.subscribe(() => {
-            if (this.analysis?.intervalData?.length > 0) {
-                this.buildChart();
-            }
-        });
+  private analyze(): void {
+    if (!this.activity) {
+      return;
     }
 
-    private analyze(): void {
-        if (!this.activity) {
-            return;
-        }
-
-        // Check if cycling dynamics balance data is available
-        const dynamics = this.activity.stats?.dynamics?.cycling;
-        if (dynamics) {
-            this.analysis = LeftRightBalanceAnalyzer.analyzeFromDynamics(dynamics);
-        }
-
-        if (!this.analysis) {
-            // Show unavailable message only for cycling activities
-            this.showUnavailable = Activity.isRide(this.activity.type);
-        } else {
-            this.consistencyPercent = _.round(this.analysis.consistencyScore * 100, 0);
-        }
+    // Check if cycling dynamics balance data is available
+    const dynamics = this.activity.stats?.dynamics?.cycling;
+    if (dynamics) {
+      this.analysis = LeftRightBalanceAnalyzer.analyzeFromDynamics(dynamics);
     }
 
-    private buildChart(): void {
-        if (!this.analysis?.intervalData?.length) {
-            return;
-        }
-
-        const intervals = this.analysis.intervalData;
-        const isDark = this.appService.currentTheme === "dark";
-        const textColor = isDark ? "white" : "black";
-        const gridColor = isDark ? "#4d4d4d" : "#efefef";
-
-        // Time labels (minutes)
-        const timeLabels = intervals.map(d => _.round(d.startTime / 60, 0));
-
-        // Left balance trace
-        const leftTrace: any = {
-            x: timeLabels,
-            y: intervals.map(d => d.leftPercent),
-            type: "scatter",
-            mode: "lines",
-            name: "Left %",
-            line: { color: "#42a5f5", width: 2 },
-            fill: "tozeroy",
-            fillcolor: "rgba(66, 165, 245, 0.15)",
-            hovertemplate: "L: %{y:.1f}%<br>Min %{x}<extra></extra>"
-        };
-
-        // 50% reference line
-        const refLine: any = {
-            x: [timeLabels[0], timeLabels[timeLabels.length - 1]],
-            y: [50, 50],
-            type: "scatter",
-            mode: "lines",
-            name: "50% reference",
-            line: { color: "rgba(128, 128, 128, 0.5)", width: 1, dash: "dash" },
-            showlegend: false,
-            hoverinfo: "skip"
-        };
-
-        this.chartData = [leftTrace, refLine];
-
-        this.chartLayout = {
-            font: { size: 11, family: "Roboto", color: textColor },
-            height: 250,
-            margin: { t: 10, b: 40, l: 50, r: 20 },
-            paper_bgcolor: "transparent",
-            plot_bgcolor: "transparent",
-            xaxis: {
-                title: "Time (minutes)",
-                gridcolor: gridColor,
-                tickfont: { color: textColor }
-            },
-            yaxis: {
-                title: "Left Balance %",
-                range: [35, 65],
-                gridcolor: gridColor,
-                tickfont: { color: textColor },
-                zeroline: false
-            },
-            legend: {
-                orientation: "h",
-                y: -0.25,
-                font: { color: textColor }
-            },
-            hovermode: "x"
-        };
+    if (!this.analysis) {
+      // Show unavailable message only for cycling activities
+      this.showUnavailable = Activity.isRide(this.activity.type);
+    } else {
+      this.consistencyPercent = _.round(this.analysis.consistencyScore * 100, 0);
     }
+  }
+
+  private buildChart(): void {
+    if (!this.analysis?.intervalData?.length) {
+      return;
+    }
+
+    const intervals = this.analysis.intervalData;
+    const isDark = this.appService.currentTheme === "dark";
+    const textColor = isDark ? "white" : "black";
+    const gridColor = isDark ? "#4d4d4d" : "#efefef";
+
+    // Time labels (minutes)
+    const timeLabels = intervals.map(d => _.round(d.startTime / 60, 0));
+
+    // Left balance trace
+    const leftTrace: any = {
+      x: timeLabels,
+      y: intervals.map(d => d.leftPercent),
+      type: "scatter",
+      mode: "lines",
+      name: "Left %",
+      line: { color: "#42a5f5", width: 2 },
+      fill: "tozeroy",
+      fillcolor: "rgba(66, 165, 245, 0.15)",
+      hovertemplate: "L: %{y:.1f}%<br>Min %{x}<extra></extra>"
+    };
+
+    // 50% reference line
+    const refLine: any = {
+      x: [timeLabels[0], timeLabels[timeLabels.length - 1]],
+      y: [50, 50],
+      type: "scatter",
+      mode: "lines",
+      name: "50% reference",
+      line: { color: "rgba(128, 128, 128, 0.5)", width: 1, dash: "dash" },
+      showlegend: false,
+      hoverinfo: "skip"
+    };
+
+    this.chartData = [leftTrace, refLine];
+
+    this.chartLayout = {
+      font: { size: 11, family: "Roboto", color: textColor },
+      height: 250,
+      margin: { t: 10, b: 40, l: 50, r: 20 },
+      paper_bgcolor: "transparent",
+      plot_bgcolor: "transparent",
+      xaxis: {
+        title: "Time (minutes)",
+        gridcolor: gridColor,
+        tickfont: { color: textColor }
+      },
+      yaxis: {
+        title: "Left Balance %",
+        range: [35, 65],
+        gridcolor: gridColor,
+        tickfont: { color: textColor },
+        zeroline: false
+      },
+      legend: {
+        orientation: "h",
+        y: -0.25,
+        font: { color: textColor }
+      },
+      hovermode: "x"
+    };
+  }
 }

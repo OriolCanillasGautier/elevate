@@ -226,22 +226,24 @@ export class ActivityViewComponent implements OnInit, OnDestroy {
 
     if (isRun) {
       const runningFtp = this.activity.athleteSnapshot.athleteSettings.runningFtp;
-      snapshotFormatted += ` - Threshold ${runningFtp
+      snapshotFormatted += ` - Threshold ${
+        runningFtp
           ? PaceSensor.DEFAULT.formatFromStat(runningFtp, this.userSettings.systemUnit) +
-          PaceSensor.DEFAULT.getDisplayUnit(systemUnit)
+            PaceSensor.DEFAULT.getDisplayUnit(systemUnit)
           : "Missing"
-        }`;
+      }`;
     }
 
     if (isSwim) {
       const swimFtpMeterPerMin = this.activity.athleteSnapshot.athleteSettings.swimFtp;
-      snapshotFormatted += ` - Threshold ${swimFtpMeterPerMin
+      snapshotFormatted += ` - Threshold ${
+        swimFtpMeterPerMin
           ? SwimmingPaceSensor.DEFAULT.formatFromStat(
-            (1 / (swimFtpMeterPerMin / 60)) * 1000, // Convert m/min to s/km
-            this.userSettings.systemUnit
-          ) + SwimmingPaceSensor.DEFAULT.getDisplayUnit(systemUnit)
+              (1 / (swimFtpMeterPerMin / 60)) * 1000, // Convert m/min to s/km
+              this.userSettings.systemUnit
+            ) + SwimmingPaceSensor.DEFAULT.getDisplayUnit(systemUnit)
           : "Missing"
-        }`;
+      }`;
     }
 
     return snapshotFormatted;
