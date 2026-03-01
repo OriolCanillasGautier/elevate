@@ -93,6 +93,12 @@
 </p>
 
 <p align="center">
+  <img src="./.screenshots/ftp-trend.png" alt="ftp-trend" />
+  <br>
+  <em>🚧 <strong>[In Development]</strong> Track your Functional Threshold Power (FTP) trends over time with automatic estimation from your rides. Features include inactivity decay tracking, heart rate intensity weighting, indoor trainer filtering, and CTL-based fitness modulation.</em>
+</p>
+
+<p align="center">
   <img src="./.screenshots/year-progress-ytd.png" alt="year-progress-ytd" />
   <br>
   <em>Monitor your yearly progression with cumulative activity and training volume charts.</em>
