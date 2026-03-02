@@ -3,6 +3,7 @@ import {
   FtpEstimate,
   FtpConfidence,
   FtpTrendPoint,
+  RunningThresholdTrendPoint,
   PowerDurationPoint,
   DetectedEffort,
   ActivityFtpAnalysis,
@@ -80,8 +81,8 @@ export class FtpEstimator {
       power.variabilityIndex > 0
         ? power.variabilityIndex
         : power.weighted > 0 && power.avg > 0
-        ? power.weighted / power.avg
-        : 1.0;
+          ? power.weighted / power.avg
+          : 1.0;
 
     // Long rides are almost always endurance
     if (durationMinutes > 120) return "endurance";
@@ -310,11 +311,10 @@ export class FtpEstimator {
         )}) on a hard ride with diverse efforts.`;
       } else if (cpResult.params.rSquared >= FtpEstimator.MIN_SINGLE_RIDE_R_SQUARED) {
         trust = rideIntensity === "threshold" ? "medium" : "low";
-        rationale = `Good curve fit (R²=${_.round(cpResult.params.rSquared, 3)}). ${
-          rideIntensity === "tempo"
+        rationale = `Good curve fit (R²=${_.round(cpResult.params.rSquared, 3)}). ${rideIntensity === "tempo"
             ? "Tempo ride — estimate may be slightly low."
             : "More varied, hard efforts would improve reliability."
-        }`;
+          }`;
       } else {
         trust = "low";
         rationale = `Moderate curve fit (R²=${_.round(
@@ -925,6 +925,278 @@ export class FtpEstimator {
   }
 
   // ──────────────────────────────────────────────────────────────────────
+  //  Running Threshold Trend
+  // ──────────────────────────────────────────────────────────────────────
+
+  /**
+   * Compute a running threshold pace (and optionally power) trend over time.
+   *
+   * **Pace-based** (no power meter):
+   *   Uses Grade Adjusted Pace (`gapAvg`) — so terrain is already corrected.
+   *   Extrapolates back to threshold pace via HR effort ratio:
+   *     `thresholdPace = gapAvg × (avgHR / thresholdHR)`
+   *   where `thresholdHR ≈ 0.87 × maxHR`. Runs with avgHR < 70% of thresholdHR
+   *   are skipped (extrapolation too unreliable). Runs closer to threshold HR
+   *   contribute more weight in the EWMA.
+   *
+   * **Power-based** (Stryd or equivalent):
+   *   Applies the same `NP × min(VI, viCap)` formula as cycling, with running-
+   *   specific VI caps: ≤60 min → 1.03, 60–90 min → 1.08, >90 min → 1.12.
+   *
+   * Both methods feed the same EWMA smoother (α = 0.3) with inactivity decay
+   * (~5 % / 90 days after a 7-day grace period) — identical to cycling FTP trend.
+   *
+   * @param activities All activities (runs filtered internally)
+   * @param athleteWeight Athlete weight in kg
+   * @param windowDays Lookback window for confidence scoring (default: 90 days)
+   * @param intervalDays Interval between emitted trend points (default: 7 days)
+   * @param ctlByDate Optional CTL map for decay modulation
+   * @returns Array of running threshold trend points
+   */
+  public static computeRunningThresholdTrend(
+    activities: Activity[],
+    athleteWeight: number,
+    windowDays: number = 90,
+    intervalDays: number = 7,
+    ctlByDate?: Map<string, number>
+  ): RunningThresholdTrendPoint[] {
+    // ── Constants ──
+    const MIN_RUN_DURATION = 10 * 60; // 10 minutes minimum
+    const LTHR_RATIO = 0.87;          // LTHR ≈ 87% of maxHR
+    const MIN_EFFORT_RATIO = 0.70;    // Skip runs below 70% of LTHR (too easy)
+    const BASE_DECAY_PER_DAY = 0.00057;
+    const DECAY_GRACE_DAYS = 7;
+    const MS_PER_DAY = 24 * 60 * 60 * 1000;
+    const alpha = 0.3;
+
+    // VI caps for running (tighter than cycling — running is more biomechanically consistent)
+    const runViCap = (durationMinutes: number): number => {
+      if (durationMinutes <= 60) return 1.03;
+      if (durationMinutes <= 90) return 1.08;
+      return 1.12;
+    };
+
+    // ── Filter qualifying running activities ──
+    const runs = activities
+      .filter(a => {
+        if (!Activity.isRun(a.type)) return false;
+        if (a.flags && (
+          a.flags.includes(ActivityFlag.POWER_AVG_KG_ABNORMAL) ||
+          a.flags.includes(ActivityFlag.POWER_THRESHOLD_ABNORMAL)
+        )) return false;
+        const duration = Math.max(a.stats?.movingTime || 0, a.stats?.elapsedTime || 0);
+        if (duration < MIN_RUN_DURATION) return false;
+        // Need at least GAP or power
+        const hasGapHr = (a.stats?.pace?.gapAvg > 0) && (a.stats?.heartRate?.avg > 0) && (a.stats?.heartRate?.max > 0);
+        const hasPower = a.hasPowerMeter && a.stats?.power?.weighted > 0;
+        return hasGapHr || hasPower;
+      })
+      .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+    if (runs.length === 0) return [];
+
+    // ── Per-run estimates ──
+    interface RunEstimate {
+      date: string;
+      dateMs: number;
+      paceSec: number;            // threshold pace (s/km)
+      power: number | null;       // threshold power (watts) — Stryd only
+      weight: number;             // EWMA contribution weight
+    }
+
+    const runEstimates: RunEstimate[] = [];
+
+    for (const activity of runs) {
+      const dateMs = new Date(activity.startTime).getTime();
+      const date = new Date(activity.startTime).toISOString().split("T")[0];
+      const duration = Math.max(activity.stats.movingTime || 0, activity.stats.elapsedTime || 0);
+      const durationMinutes = duration / 60;
+
+      let paceSec: number | null = null;
+      let power: number | null = null;
+      let weight = 0;
+
+      // ── Pace-based estimation (always attempted if GAP + HR available) ──
+      const gapAvg = activity.stats?.pace?.gapAvg;   // s/km, terrain-corrected
+      const avgHr = activity.stats?.heartRate?.avg;
+      const maxHr = activity.stats?.heartRate?.max;
+
+      if (gapAvg > 0 && avgHr > 0 && maxHr > 0) {
+        const thresholdHR = maxHr * LTHR_RATIO;
+        const effortRatio = avgHr / thresholdHR;
+
+        if (effortRatio >= MIN_EFFORT_RATIO) {
+          // Threshold pace = current GAP scaled by how close HR was to threshold
+          paceSec = _.round(gapAvg * effortRatio, 1);
+          // Weight: higher for runs closer to threshold HR; cap at 1.0.
+          // Short runs (<30 min) are less reliable → dampen their contribution.
+          const durationWeight =
+            durationMinutes >= 30 ? 1.0 :
+              durationMinutes >= 20 ? 0.80 : 0.55; // 10-20 min → 55% weight
+          weight = Math.min(effortRatio, 1.0) * durationWeight;
+
+          // If best20min is available and HR was clearly hard (>85%), prefer it
+          const best20min = activity.stats?.pace?.best20min;
+          if (best20min > 0 && effortRatio >= 0.95) {
+            // best20min pace × 1.02 ≈ threshold pace (reverse of 20min×0.95 rule)
+            paceSec = _.round(best20min * 1.02, 1);
+            weight = Math.min(weight * 1.2, 1.0); // bonus weight for near-threshold effort
+          }
+        }
+      }
+
+      // ── Power-based estimation (Stryd) ──
+      if (activity.hasPowerMeter && activity.stats?.power?.weighted > 0) {
+        const np = activity.stats.power.weighted;
+        const avgP = activity.stats.power.avg;
+        const vi = activity.stats.power.variabilityIndex > 0
+          ? activity.stats.power.variabilityIndex
+          : (np > 0 && avgP > 0 ? np / avgP : 1.0);
+
+        const effectiveVI = Math.min(vi, runViCap(durationMinutes));
+        const estPower = _.round(np * effectiveVI, 0);
+
+        if (estPower > 0) {
+          power = estPower;
+          // Power estimate weight: weighted by run length (longer = more reliable)
+          const powerWeight = durationMinutes >= 90 ? 1.0 : durationMinutes >= 60 ? 0.85 : 0.70;
+          // If we also had pace: blend; otherwise use power weight as the main weight
+          weight = paceSec != null ? Math.max(weight, powerWeight) : powerWeight;
+          // If no pace estimate from HR, synthesise one from power (running ~1W/kg = ~3:20/km varies)
+          // Only do this if we have no HR-based pace estimate
+          if (paceSec == null && athleteWeight > 0) {
+            const wkg = estPower / athleteWeight;
+            // Approximate running threshold pace for given W/kg (empirical curve)
+            // Reference: ~3.5 W/kg ≈ 4:00/km, ~4.0 W/kg ≈ 3:35/km, ~2.5 W/kg ≈ 5:00/km
+            // log-linear: pace_s = 3000 × wkg^(-0.85) (rough fit)
+            if (wkg > 1.0) {
+              paceSec = _.round(3000 * Math.pow(wkg, -0.85), 1);
+            }
+          }
+        }
+      }
+
+      if (paceSec == null || weight <= 0) continue;
+
+      runEstimates.push({ date, dateMs, paceSec, power, weight });
+    }
+
+    if (runEstimates.length === 0) return [];
+
+    // ── CTL decay helper ──
+    const getDecayRate = (fromDate: string, toDate: string): number => {
+      let rate = BASE_DECAY_PER_DAY;
+      if (ctlByDate) {
+        const ctlFrom = ctlByDate.get(fromDate);
+        const ctlTo = ctlByDate.get(toDate);
+        if (ctlFrom != null && ctlTo != null && ctlFrom > 0) {
+          const ctlDrop = (ctlFrom - ctlTo) / ctlFrom;
+          if (ctlDrop > 0.05) rate *= 1.0 + Math.min(ctlDrop / 0.20, 1.0);
+        }
+      }
+      return rate;
+    };
+
+    // ── EWMA with inactivity decay ──
+    let ewmaPace = runEstimates[0].paceSec;
+    let ewmaPower: number | null = runEstimates[0].power;
+    let lastDateMs = runEstimates[0].dateMs;
+    let lastDate = runEstimates[0].date;
+
+    const smoothed: Array<{ date: string; dateMs: number; paceSec: number; power: number | null }> = [
+      { date: lastDate, dateMs: lastDateMs, paceSec: _.round(ewmaPace, 1), power: ewmaPower }
+    ];
+
+    for (let i = 1; i < runEstimates.length; i++) {
+      const est = runEstimates[i];
+
+      // Inactivity decay on pace (higher s/km = slower pace = fitness loss)
+      const daysSinceLast = (est.dateMs - lastDateMs) / MS_PER_DAY;
+      if (daysSinceLast > DECAY_GRACE_DAYS) {
+        const decayDays = daysSinceLast - DECAY_GRACE_DAYS;
+        const decayRate = getDecayRate(lastDate, est.date);
+        // Pace INCREASES (gets slower) during inactivity
+        ewmaPace *= (1 + decayRate) ** decayDays;
+        if (ewmaPower != null) ewmaPower = _.round(ewmaPower * (1 - decayRate) ** decayDays, 0);
+      }
+
+      const eff = alpha * est.weight;
+      ewmaPace = eff * est.paceSec + (1 - eff) * ewmaPace;
+      if (est.power != null) {
+        ewmaPower = ewmaPower != null
+          ? _.round(eff * est.power + (1 - eff) * ewmaPower, 0)
+          : est.power;
+      }
+
+      lastDateMs = est.dateMs;
+      lastDate = est.date;
+      smoothed.push({ date: est.date, dateMs: est.dateMs, paceSec: _.round(ewmaPace, 1), power: ewmaPower });
+    }
+
+    // ── Emit trend points at regular intervals ──
+    const firstDateMs = smoothed[0].dateMs;
+    const lastSmoothed = smoothed[smoothed.length - 1];
+    const todayMs = Date.now();
+    const endMs = Math.max(lastSmoothed.dateMs, todayMs);
+    const intervalMs = intervalDays * MS_PER_DAY;
+    const lookbackMs = windowDays * MS_PER_DAY;
+    const trendPoints: RunningThresholdTrendPoint[] = [];
+
+    let currentMs = firstDateMs;
+    while (currentMs <= endMs) {
+      let closest: typeof smoothed[0] | null = null;
+      for (let j = smoothed.length - 1; j >= 0; j--) {
+        if (smoothed[j].dateMs <= currentMs) { closest = smoothed[j]; break; }
+      }
+
+      if (!closest) { currentMs += intervalMs; continue; }
+
+      let pace = closest.paceSec;
+      let pow = closest.power;
+      const daysSince = (currentMs - closest.dateMs) / MS_PER_DAY;
+      if (daysSince > DECAY_GRACE_DAYS) {
+        const decayDays = daysSince - DECAY_GRACE_DAYS;
+        const dateStr = new Date(currentMs).toISOString().split("T")[0];
+        const rate = getDecayRate(closest.date, dateStr);
+        pace = _.round(closest.paceSec * (1 + rate) ** decayDays, 1);
+        if (pow != null) pow = _.round(closest.power * (1 - rate) ** decayDays, 0);
+      }
+
+      const dateStr = new Date(currentMs).toISOString().split("T")[0];
+      const runsInWindow = runEstimates.filter(
+        r => r.dateMs >= currentMs - lookbackMs && r.dateMs <= currentMs
+      ).length;
+      const confidence = _.round(Math.min(runsInWindow / 10, 1.0) * 100, 0);
+      const confidenceLabel: "high" | "moderate" | "low" | "insufficient" =
+        confidence >= 70 ? "high" : confidence >= 40 ? "moderate" : confidence >= 20 ? "low" : "insufficient";
+
+      trendPoints.push({ date: dateStr, thresholdPaceSec: pace, thresholdPower: pow, confidence, confidenceLabel, activityCount: runsInWindow });
+      currentMs += intervalMs;
+    }
+
+    // Always include today / last point
+    const finalDateStr = new Date(endMs).toISOString().split("T")[0];
+    if (trendPoints.length === 0 || trendPoints[trendPoints.length - 1].date !== finalDateStr) {
+      const daysSinceLast = (endMs - lastSmoothed.dateMs) / MS_PER_DAY;
+      let finalPace = lastSmoothed.paceSec;
+      let finalPow = lastSmoothed.power;
+      if (daysSinceLast > DECAY_GRACE_DAYS) {
+        const decayDays = daysSinceLast - DECAY_GRACE_DAYS;
+        const rate = getDecayRate(lastSmoothed.date, finalDateStr);
+        finalPace = _.round(lastSmoothed.paceSec * (1 + rate) ** decayDays, 1);
+        if (finalPow != null) finalPow = _.round(lastSmoothed.power * (1 - rate) ** decayDays, 0);
+      }
+      const runsInWindow = runEstimates.filter(r => r.dateMs >= endMs - lookbackMs && r.dateMs <= endMs).length;
+      const confidence = _.round(Math.min(runsInWindow / 10, 1.0) * 100, 0);
+      const confidenceLabel: "high" | "moderate" | "low" | "insufficient" =
+        confidence >= 70 ? "high" : confidence >= 40 ? "moderate" : confidence >= 20 ? "low" : "insufficient";
+      trendPoints.push({ date: finalDateStr, thresholdPaceSec: finalPace, thresholdPower: finalPow, confidence, confidenceLabel, activityCount: runsInWindow });
+    }
+
+    return trendPoints;
+  }
+
+  // ──────────────────────────────────────────────────────────────────────
   //  Internal helpers — data extraction
   // ──────────────────────────────────────────────────────────────────────
 
@@ -1143,7 +1415,7 @@ export class FtpEstimator {
         recency * 0.15 +
         modelFit * 0.2 +
         physiologicalConsistency * 0.15) *
-        100,
+      100,
       0
     );
 

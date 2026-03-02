@@ -16,6 +16,7 @@ import { FitnessTrendActivitiesLinksDialogComponent } from "./fitness-trend-acti
 import { FitnessTrendUserGuideComponent } from "./fitness-trend-user-guide/fitness-trend-user-guide.component";
 import { FtpTrendGraphComponent } from "./ftp-trend-graph/ftp-trend-graph.component";
 import { FtpEstimationService } from "./shared/services/ftp-estimation.service";
+import { RunningThresholdGraphComponent } from "./running-threshold-graph/running-threshold-graph.component";
 
 PlotlyModule.plotlyjs = PlotlyJS;
 
@@ -31,8 +32,9 @@ PlotlyModule.plotlyjs = PlotlyJS;
     FitnessTrendConfigDialogComponent,
     FitnessTrendActivitiesLinksDialogComponent,
     FitnessTrendUserGuideComponent,
-    FtpTrendGraphComponent
+    FtpTrendGraphComponent,
+    RunningThresholdGraphComponent
   ],
   providers: [FitnessService, ViewedDayService, FtpEstimationService]
 })
-export class FitnessTrendModule {}
+export class FitnessTrendModule { }

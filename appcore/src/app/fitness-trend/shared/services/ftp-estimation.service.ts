@@ -1,7 +1,7 @@
 import { Inject, Injectable } from "@angular/core";
 import { ActivityService } from "../../../shared/services/activity/activity.service";
 import { FtpEstimator } from "@elevate/shared/sync/compute/ftp-estimator";
-import { FtpEstimate, FtpTrendPoint } from "@elevate/shared/models/ftp-estimate.model";
+import { FtpEstimate, FtpTrendPoint, RunningThresholdTrendPoint } from "@elevate/shared/models/ftp-estimate.model";
 import { Activity } from "@elevate/shared/models/sync/activity.model";
 import { DayFitnessTrendModel } from "../models/day-fitness-trend.model";
 import { LoggerService } from "../../../shared/services/logging/logger.service";
@@ -17,7 +17,7 @@ export class FtpEstimationService {
   constructor(
     @Inject(ActivityService) private readonly activityService: ActivityService,
     @Inject(LoggerService) private readonly logger: LoggerService
-  ) {}
+  ) { }
 
   /**
    * Compute the current FTP estimate from all synced cycling activities.
@@ -92,5 +92,40 @@ export class FtpEstimationService {
    */
   public async getLatestEstimate(athleteWeight: number): Promise<FtpEstimate | null> {
     return this.estimateCurrentFtp(athleteWeight);
+  }
+
+  /**
+   * Compute the running threshold pace (and optionally power) trend over time.
+   *
+   * @param athleteWeight Athlete weight in kg
+   * @param windowDays Lookback window for confidence scoring (default: 90 days)
+   * @param intervalDays Interval between trend points (default: 7 days)
+   * @param fitnessTrend Optional fitness trend data for CTL-based decay modulation
+   * @returns Array of running threshold trend points
+   */
+  public async computeRunningThresholdTrend(
+    athleteWeight: number,
+    windowDays: number = 90,
+    intervalDays: number = 7,
+    fitnessTrend?: DayFitnessTrendModel[]
+  ): Promise<RunningThresholdTrendPoint[]> {
+    try {
+      const activities = await this.activityService.fetch();
+
+      let ctlByDate: Map<string, number> | undefined;
+      if (fitnessTrend?.length > 0) {
+        ctlByDate = new Map();
+        for (const day of fitnessTrend) {
+          if (day.dateString && day.ctl != null) {
+            ctlByDate.set(day.dateString, day.ctl);
+          }
+        }
+      }
+
+      return FtpEstimator.computeRunningThresholdTrend(activities, athleteWeight, windowDays, intervalDays, ctlByDate);
+    } catch (err) {
+      this.logger.error("Error computing running threshold trend:", err);
+      return [];
+    }
   }
 }

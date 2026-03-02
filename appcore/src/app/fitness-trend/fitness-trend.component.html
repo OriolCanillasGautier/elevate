@@ -97,6 +97,21 @@
   </mat-card-content>
 </mat-card>
 
+<mat-card *ngIf="areActivitiesCompliant === true">
+  <mat-card-title>
+    <mat-icon fontSet="material-icons-outlined" inline="true" color="primary">directions_run</mat-icon>
+    Estimated Running Threshold Trend
+    <span class="mat-caption" style="margin-left: 8px; opacity: 0.6;">🚧 In Development</span>
+  </mat-card-title>
+  <mat-card-subtitle>
+    Track how your lactate threshold pace evolves over time, estimated from your runs using Grade Adjusted Pace and
+    heart rate. Terrain is automatically corrected — hills don't skew the estimate.
+  </mat-card-subtitle>
+  <mat-card-content>
+    <app-running-threshold-graph [trendPoints]="runningThresholdPoints"></app-running-threshold-graph>
+  </mat-card-content>
+</mat-card>
+
 <mat-card [style.visibility]="((areActivitiesCompliant === true) ? 'visible' : 'hidden')">
   <mat-card-title>
     Fitness analysis table

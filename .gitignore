@@ -4,5 +4,25 @@
 **/package/
 **/coverage/
 
+# Build artifacts
+**/build-dev/
+**/build_metadata.json
+**/.vite/
+
+# Electron/Installer outputs
+*.exe
+*.msi
+*.dmg
+*.deb
+*.rpm
+*.blockmap
+*.yaml.bak
+
 # OS
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

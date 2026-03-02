@@ -320,3 +320,38 @@ export interface PowerBalanceInterval {
   /** Average power for this interval */
   avgPower: number;
 }
+
+// ────────────────────────────────────────────────────────────────────────────
+//  Running Threshold Trend (pace + optional Stryd power)
+// ────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Historical running threshold estimate for trend tracking.
+ *
+ * Uses Grade-Adjusted Pace (GAP) as input so terrain is already corrected.
+ * HR effort ratio extrapolates any run intensity back to threshold pace.
+ * When a running power meter (Stryd) is present, threshold power is also
+ * estimated using the same NP×VI pipeline as cycling.
+ */
+export interface RunningThresholdTrendPoint {
+  /** Date of the estimate (ISO date string) */
+  date: string;
+
+  /**
+   * Estimated threshold pace in seconds per km — terrain-corrected via GAP.
+   * Lower value = faster pace = better fitness.
+   */
+  thresholdPaceSec: number;
+
+  /** Estimated threshold power in watts. Null when no running power meter. */
+  thresholdPower: number | null;
+
+  /** Confidence score 0–100 */
+  confidence: number;
+
+  /** Confidence label */
+  confidenceLabel: "high" | "moderate" | "low" | "insufficient";
+
+  /** Number of qualifying runs in the lookback window */
+  activityCount: number;
+}
