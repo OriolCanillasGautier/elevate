@@ -81,8 +81,8 @@ export class FtpEstimator {
       power.variabilityIndex > 0
         ? power.variabilityIndex
         : power.weighted > 0 && power.avg > 0
-          ? power.weighted / power.avg
-          : 1.0;
+        ? power.weighted / power.avg
+        : 1.0;
 
     // Long rides are almost always endurance
     if (durationMinutes > 120) return "endurance";
@@ -311,10 +311,11 @@ export class FtpEstimator {
         )}) on a hard ride with diverse efforts.`;
       } else if (cpResult.params.rSquared >= FtpEstimator.MIN_SINGLE_RIDE_R_SQUARED) {
         trust = rideIntensity === "threshold" ? "medium" : "low";
-        rationale = `Good curve fit (R²=${_.round(cpResult.params.rSquared, 3)}). ${rideIntensity === "tempo"
+        rationale = `Good curve fit (R²=${_.round(cpResult.params.rSquared, 3)}). ${
+          rideIntensity === "tempo"
             ? "Tempo ride — estimate may be slightly low."
             : "More varied, hard efforts would improve reliability."
-          }`;
+        }`;
       } else {
         trust = "low";
         rationale = `Moderate curve fit (R²=${_.round(
@@ -962,8 +963,8 @@ export class FtpEstimator {
   ): RunningThresholdTrendPoint[] {
     // ── Constants ──
     const MIN_RUN_DURATION = 10 * 60; // 10 minutes minimum
-    const LTHR_RATIO = 0.87;          // LTHR ≈ 87% of maxHR
-    const MIN_EFFORT_RATIO = 0.70;    // Skip runs below 70% of LTHR (too easy)
+    const LTHR_RATIO = 0.87; // LTHR ≈ 87% of maxHR
+    const MIN_EFFORT_RATIO = 0.7; // Skip runs below 70% of LTHR (too easy)
     const BASE_DECAY_PER_DAY = 0.00057;
     const DECAY_GRACE_DAYS = 7;
     const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -980,14 +981,16 @@ export class FtpEstimator {
     const runs = activities
       .filter(a => {
         if (!Activity.isRun(a.type)) return false;
-        if (a.flags && (
-          a.flags.includes(ActivityFlag.POWER_AVG_KG_ABNORMAL) ||
-          a.flags.includes(ActivityFlag.POWER_THRESHOLD_ABNORMAL)
-        )) return false;
+        if (
+          a.flags &&
+          (a.flags.includes(ActivityFlag.POWER_AVG_KG_ABNORMAL) ||
+            a.flags.includes(ActivityFlag.POWER_THRESHOLD_ABNORMAL))
+        )
+          return false;
         const duration = Math.max(a.stats?.movingTime || 0, a.stats?.elapsedTime || 0);
         if (duration < MIN_RUN_DURATION) return false;
         // Need at least GAP or power
-        const hasGapHr = (a.stats?.pace?.gapAvg > 0) && (a.stats?.heartRate?.avg > 0) && (a.stats?.heartRate?.max > 0);
+        const hasGapHr = a.stats?.pace?.gapAvg > 0 && a.stats?.heartRate?.avg > 0 && a.stats?.heartRate?.max > 0;
         const hasPower = a.hasPowerMeter && a.stats?.power?.weighted > 0;
         return hasGapHr || hasPower;
       })
@@ -999,9 +1002,9 @@ export class FtpEstimator {
     interface RunEstimate {
       date: string;
       dateMs: number;
-      paceSec: number;            // threshold pace (s/km)
-      power: number | null;       // threshold power (watts) — Stryd only
-      weight: number;             // EWMA contribution weight
+      paceSec: number; // threshold pace (s/km)
+      power: number | null; // threshold power (watts) — Stryd only
+      weight: number; // EWMA contribution weight
     }
 
     const runEstimates: RunEstimate[] = [];
@@ -1017,7 +1020,7 @@ export class FtpEstimator {
       let weight = 0;
 
       // ── Pace-based estimation (always attempted if GAP + HR available) ──
-      const gapAvg = activity.stats?.pace?.gapAvg;   // s/km, terrain-corrected
+      const gapAvg = activity.stats?.pace?.gapAvg; // s/km, terrain-corrected
       const avgHr = activity.stats?.heartRate?.avg;
       const maxHr = activity.stats?.heartRate?.max;
 
@@ -1030,9 +1033,7 @@ export class FtpEstimator {
           paceSec = _.round(gapAvg * effortRatio, 1);
           // Weight: higher for runs closer to threshold HR; cap at 1.0.
           // Short runs (<30 min) are less reliable → dampen their contribution.
-          const durationWeight =
-            durationMinutes >= 30 ? 1.0 :
-              durationMinutes >= 20 ? 0.80 : 0.55; // 10-20 min → 55% weight
+          const durationWeight = durationMinutes >= 30 ? 1.0 : durationMinutes >= 20 ? 0.8 : 0.55; // 10-20 min → 55% weight
           weight = Math.min(effortRatio, 1.0) * durationWeight;
 
           // If best20min is available and HR was clearly hard (>85%), prefer it
@@ -1049,9 +1050,12 @@ export class FtpEstimator {
       if (activity.hasPowerMeter && activity.stats?.power?.weighted > 0) {
         const np = activity.stats.power.weighted;
         const avgP = activity.stats.power.avg;
-        const vi = activity.stats.power.variabilityIndex > 0
-          ? activity.stats.power.variabilityIndex
-          : (np > 0 && avgP > 0 ? np / avgP : 1.0);
+        const vi =
+          activity.stats.power.variabilityIndex > 0
+            ? activity.stats.power.variabilityIndex
+            : np > 0 && avgP > 0
+            ? np / avgP
+            : 1.0;
 
         const effectiveVI = Math.min(vi, runViCap(durationMinutes));
         const estPower = _.round(np * effectiveVI, 0);
@@ -1059,7 +1063,7 @@ export class FtpEstimator {
         if (estPower > 0) {
           power = estPower;
           // Power estimate weight: weighted by run length (longer = more reliable)
-          const powerWeight = durationMinutes >= 90 ? 1.0 : durationMinutes >= 60 ? 0.85 : 0.70;
+          const powerWeight = durationMinutes >= 90 ? 1.0 : durationMinutes >= 60 ? 0.85 : 0.7;
           // If we also had pace: blend; otherwise use power weight as the main weight
           weight = paceSec != null ? Math.max(weight, powerWeight) : powerWeight;
           // If no pace estimate from HR, synthesise one from power (running ~1W/kg = ~3:20/km varies)
@@ -1091,7 +1095,7 @@ export class FtpEstimator {
         const ctlTo = ctlByDate.get(toDate);
         if (ctlFrom != null && ctlTo != null && ctlFrom > 0) {
           const ctlDrop = (ctlFrom - ctlTo) / ctlFrom;
-          if (ctlDrop > 0.05) rate *= 1.0 + Math.min(ctlDrop / 0.20, 1.0);
+          if (ctlDrop > 0.05) rate *= 1.0 + Math.min(ctlDrop / 0.2, 1.0);
         }
       }
       return rate;
@@ -1123,9 +1127,7 @@ export class FtpEstimator {
       const eff = alpha * est.weight;
       ewmaPace = eff * est.paceSec + (1 - eff) * ewmaPace;
       if (est.power != null) {
-        ewmaPower = ewmaPower != null
-          ? _.round(eff * est.power + (1 - eff) * ewmaPower, 0)
-          : est.power;
+        ewmaPower = ewmaPower != null ? _.round(eff * est.power + (1 - eff) * ewmaPower, 0) : est.power;
       }
 
       lastDateMs = est.dateMs;
@@ -1146,10 +1148,16 @@ export class FtpEstimator {
     while (currentMs <= endMs) {
       let closest: typeof smoothed[0] | null = null;
       for (let j = smoothed.length - 1; j >= 0; j--) {
-        if (smoothed[j].dateMs <= currentMs) { closest = smoothed[j]; break; }
+        if (smoothed[j].dateMs <= currentMs) {
+          closest = smoothed[j];
+          break;
+        }
       }
 
-      if (!closest) { currentMs += intervalMs; continue; }
+      if (!closest) {
+        currentMs += intervalMs;
+        continue;
+      }
 
       let pace = closest.paceSec;
       let pow = closest.power;
@@ -1163,14 +1171,19 @@ export class FtpEstimator {
       }
 
       const dateStr = new Date(currentMs).toISOString().split("T")[0];
-      const runsInWindow = runEstimates.filter(
-        r => r.dateMs >= currentMs - lookbackMs && r.dateMs <= currentMs
-      ).length;
+      const runsInWindow = runEstimates.filter(r => r.dateMs >= currentMs - lookbackMs && r.dateMs <= currentMs).length;
       const confidence = _.round(Math.min(runsInWindow / 10, 1.0) * 100, 0);
       const confidenceLabel: "high" | "moderate" | "low" | "insufficient" =
         confidence >= 70 ? "high" : confidence >= 40 ? "moderate" : confidence >= 20 ? "low" : "insufficient";
 
-      trendPoints.push({ date: dateStr, thresholdPaceSec: pace, thresholdPower: pow, confidence, confidenceLabel, activityCount: runsInWindow });
+      trendPoints.push({
+        date: dateStr,
+        thresholdPaceSec: pace,
+        thresholdPower: pow,
+        confidence,
+        confidenceLabel,
+        activityCount: runsInWindow
+      });
       currentMs += intervalMs;
     }
 
@@ -1190,7 +1203,14 @@ export class FtpEstimator {
       const confidence = _.round(Math.min(runsInWindow / 10, 1.0) * 100, 0);
       const confidenceLabel: "high" | "moderate" | "low" | "insufficient" =
         confidence >= 70 ? "high" : confidence >= 40 ? "moderate" : confidence >= 20 ? "low" : "insufficient";
-      trendPoints.push({ date: finalDateStr, thresholdPaceSec: finalPace, thresholdPower: finalPow, confidence, confidenceLabel, activityCount: runsInWindow });
+      trendPoints.push({
+        date: finalDateStr,
+        thresholdPaceSec: finalPace,
+        thresholdPower: finalPow,
+        confidence,
+        confidenceLabel,
+        activityCount: runsInWindow
+      });
     }
 
     return trendPoints;
@@ -1415,7 +1435,7 @@ export class FtpEstimator {
         recency * 0.15 +
         modelFit * 0.2 +
         physiologicalConsistency * 0.15) *
-      100,
+        100,
       0
     );
 

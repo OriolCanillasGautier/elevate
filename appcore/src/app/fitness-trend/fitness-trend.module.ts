@@ -37,4 +37,4 @@ PlotlyModule.plotlyjs = PlotlyJS;
   ],
   providers: [FitnessService, ViewedDayService, FtpEstimationService]
 })
-export class FitnessTrendModule { }
+export class FitnessTrendModule {}

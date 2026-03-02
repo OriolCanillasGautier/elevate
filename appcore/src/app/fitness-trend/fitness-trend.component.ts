@@ -84,7 +84,7 @@ export class FitnessTrendComponent implements OnInit, OnDestroy {
     @Inject(MatSnackBar) private readonly snackBar: MatSnackBar,
     @Inject(LoggerService) private readonly logger: LoggerService,
     @Inject(FtpEstimationService) private readonly ftpEstimationService: FtpEstimationService
-  ) { }
+  ) {}
 
   public static provideLastPeriods(minDate: Date): LastPeriodModel[] {
     const toDate = moment().add(FitnessService.FUTURE_DAYS_PREVIEW, "days").startOf("day").toDate();
@@ -358,13 +358,13 @@ export class FitnessTrendComponent implements OnInit, OnDestroy {
       const hasConfigChanged =
         this.fitnessTrendConfigModel.heartRateImpulseMode !== Number(fitnessTrendConfigModel.heartRateImpulseMode) ||
         this.fitnessTrendConfigModel.initializedFitnessTrendModel.ctl !==
-        fitnessTrendConfigModel.initializedFitnessTrendModel.ctl ||
+          fitnessTrendConfigModel.initializedFitnessTrendModel.ctl ||
         this.fitnessTrendConfigModel.initializedFitnessTrendModel.atl !==
-        fitnessTrendConfigModel.initializedFitnessTrendModel.atl ||
+          fitnessTrendConfigModel.initializedFitnessTrendModel.atl ||
         this.fitnessTrendConfigModel.allowEstimatedPowerStressScore !==
-        fitnessTrendConfigModel.allowEstimatedPowerStressScore ||
+          fitnessTrendConfigModel.allowEstimatedPowerStressScore ||
         this.fitnessTrendConfigModel.allowEstimatedRunningStressScore !==
-        fitnessTrendConfigModel.allowEstimatedRunningStressScore ||
+          fitnessTrendConfigModel.allowEstimatedRunningStressScore ||
         this.fitnessTrendConfigModel.ignoreBeforeDate !== fitnessTrendConfigModel.ignoreBeforeDate ||
         this.fitnessTrendConfigModel.ignoreActivityNamePatterns !== fitnessTrendConfigModel.ignoreActivityNamePatterns;
 

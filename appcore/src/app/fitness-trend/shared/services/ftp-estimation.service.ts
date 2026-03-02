@@ -17,7 +17,7 @@ export class FtpEstimationService {
   constructor(
     @Inject(ActivityService) private readonly activityService: ActivityService,
     @Inject(LoggerService) private readonly logger: LoggerService
-  ) { }
+  ) {}
 
   /**
    * Compute the current FTP estimate from all synced cycling activities.
