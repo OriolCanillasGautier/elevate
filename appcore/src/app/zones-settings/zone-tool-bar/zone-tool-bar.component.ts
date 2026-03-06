@@ -49,7 +49,7 @@ export class ZoneToolBarComponent implements OnInit {
 
   public onAutoCalculateZones(): void {
     this.athleteService.fetch().then((athleteModel: AthleteModel) => {
-      const settings = athleteModel.getCurrentSettings();
+      const settings = AthleteModel.asInstance(athleteModel).getCurrentSettings();
       const type = this.zoneDefinitionSelected.value as ZoneType;
       let zones: ZoneModel[] | null = null;
 

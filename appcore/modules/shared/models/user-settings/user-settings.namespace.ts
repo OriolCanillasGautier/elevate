@@ -45,16 +45,42 @@ export namespace UserSettings {
       zones: UserZonesModel.DEFAULT_MODEL,
       defaultMapType: DEFAULT_MAP_TYPE,
       mapToken: null,
+      activityGraphDefaultShowGraph: false,
+      activityGraphDefaultScale: "distance",
+      activityGraphDefaultSmoothingSeconds: 0,
+      activityGraphDefaultShowElevation: true,
+      activityGraphDefaultShowSpeed: true,
+      activityGraphDefaultShowHeartRate: true,
       activityGraphDefaultShowPower: false,
-      activityGraphDefaultShowCadence: false
+      activityGraphDefaultShowCadence: false,
+      fitnessTrendDefaultPeriod: "3_months",
+      fitnessTrendDefaultSmoothingDays: 0,
+      fitnessTrendDefaultShowTrainingZones: true,
+      fitnessTrendDefaultUsePowerMeter: true,
+      fitnessTrendDefaultIncludeSwim: true,
+      fitnessTrendDefaultIncludeEBikeRides: false,
+      fitnessTrendDefaultExcludeIndoorTrainerFtp: false
     };
 
     public buildTarget: BuildTarget = BuildTarget.DESKTOP;
 
     public defaultMapType: MapBoxType = DEFAULT_MAP_TYPE;
     public mapToken: string = null;
+    public activityGraphDefaultShowGraph: boolean = false;
+    public activityGraphDefaultScale: "distance" | "time" = "distance";
+    public activityGraphDefaultSmoothingSeconds: number = 0;
+    public activityGraphDefaultShowElevation: boolean = true;
+    public activityGraphDefaultShowSpeed: boolean = true;
+    public activityGraphDefaultShowHeartRate: boolean = true;
     public activityGraphDefaultShowPower: boolean = false;
     public activityGraphDefaultShowCadence: boolean = false;
+    public fitnessTrendDefaultPeriod: string = "3_months";
+    public fitnessTrendDefaultSmoothingDays: number = 0;
+    public fitnessTrendDefaultShowTrainingZones: boolean = true;
+    public fitnessTrendDefaultUsePowerMeter: boolean = true;
+    public fitnessTrendDefaultIncludeSwim: boolean = true;
+    public fitnessTrendDefaultIncludeEBikeRides: boolean = false;
+    public fitnessTrendDefaultExcludeIndoorTrainerFtp: boolean = false;
   }
 
   export class ExtensionUserSettings extends BaseUserSettings {

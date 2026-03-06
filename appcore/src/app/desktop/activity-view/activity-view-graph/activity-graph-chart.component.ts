@@ -24,6 +24,8 @@ enum ScaleMode {
   DISTANCE
 }
 
+type ActivityGraphScaleSetting = "distance" | "time";
+
 @Component({
   selector: "app-activity-graph-chart",
   templateUrl: "./activity-graph-chart.component.html",
@@ -129,7 +131,10 @@ export class ActivityGraphChartComponent extends BaseChartComponent<ScatterChart
   public ngOnInit(): void {
     this.hasDistance = !_.isEmpty(this.streams.distance);
 
-    this.updateScaleMode(ActivityGraphChartComponent.DEFAULT_SCALE_MODE, this.hasDistance);
+    this.smoothingSec = this.userSettings?.activityGraphDefaultSmoothingSeconds ?? 0;
+
+    const defaultScale: ActivityGraphScaleSetting = this.userSettings?.activityGraphDefaultScale ?? "distance";
+    this.updateScaleMode(defaultScale === "time" ? ScaleMode.TIME : ScaleMode.DISTANCE, this.hasDistance);
 
     // Filter available sensors for current activity base on his streams content
     this.availableSensors = this.filterAvailableSensors(
@@ -211,14 +216,23 @@ export class ActivityGraphChartComponent extends BaseChartComponent<ScatterChart
    * Power and cadence are configurable; all other core sensors default to visible.
    */
   private isSensorVisibleByDefault(sensor: Sensor): boolean {
+    if (sensor.streamKey === "altitude") {
+      return this.userSettings?.activityGraphDefaultShowElevation ?? true;
+    }
+    if (sensor.streamKey === "velocity_smooth" || sensor.streamKey === "grade_adjusted_speed") {
+      return this.userSettings?.activityGraphDefaultShowSpeed ?? true;
+    }
+    if (sensor.streamKey === "heartrate") {
+      return this.userSettings?.activityGraphDefaultShowHeartRate ?? true;
+    }
     if (sensor.streamKey === "watts") {
       return this.userSettings?.activityGraphDefaultShowPower ?? false;
     }
     if (sensor.streamKey === "cadence") {
       return this.userSettings?.activityGraphDefaultShowCadence ?? false;
     }
-    // grade_smooth and grade_adjusted_speed are secondary streams — keep hidden by default
-    if (sensor.streamKey === "grade_smooth" || sensor.streamKey === "grade_adjusted_speed") {
+    // grade_smooth is a secondary stream — keep hidden by default
+    if (sensor.streamKey === "grade_smooth") {
       return false;
     }
     return true;

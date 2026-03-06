@@ -77,6 +77,9 @@ export class FitnessTrendGraphComponent implements OnInit, OnChanges, OnDestroy 
   public periodViewed: PeriodModel;
 
   @Input()
+  public defaultSmoothingDays: number;
+
+  @Input()
   public isTrainingZonesEnabled;
 
   @Input()
@@ -102,6 +105,7 @@ export class FitnessTrendGraphComponent implements OnInit, OnChanges, OnDestroy 
 
   public ngOnInit(): void {
     this.PERFORMANCE_MARKER = performance.now();
+    this.smoothingDays = this.defaultSmoothingDays ?? 0;
     this.findGraphHeightFactor();
     this.setup();
     this.initialized = true;
@@ -114,7 +118,11 @@ export class FitnessTrendGraphComponent implements OnInit, OnChanges, OnDestroy 
 
     this.PERFORMANCE_MARKER = performance.now();
 
-    if (changes.fitnessTrend) {
+    if (changes.defaultSmoothingDays && !changes.defaultSmoothingDays.firstChange) {
+      this.smoothingDays = changes.defaultSmoothingDays.currentValue ?? 0;
+      this.setupViewableGraphData();
+      this.updateGraph();
+    } else if (changes.fitnessTrend) {
       this.setupViewableGraphData();
       this.updateGraph();
     } else if (changes.periodViewed || changes.isTrainingZonesEnabled) {

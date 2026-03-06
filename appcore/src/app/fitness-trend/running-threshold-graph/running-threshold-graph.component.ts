@@ -3,6 +3,8 @@ import _ from "lodash";
 import { AppService } from "../../shared/services/app-service/app.service";
 import { Theme } from "../../shared/enums/theme.enum";
 import { RunningThresholdTrendPoint } from "@elevate/shared/models/ftp-estimate.model";
+import { PeriodModel } from "../shared/models/period.model";
+import moment from "moment";
 
 /**
  * Running Threshold Trend Graph Component.
@@ -137,6 +139,7 @@ import { RunningThresholdTrendPoint } from "@elevate/shared/models/ftp-estimate.
 })
 export class RunningThresholdGraphComponent implements OnInit, OnChanges {
   @Input() public trendPoints: RunningThresholdTrendPoint[] = [];
+  @Input() public periodViewed: PeriodModel;
 
   public currentEstimate: RunningThresholdTrendPoint | null = null;
   public selectedPoint: RunningThresholdTrendPoint | null = null;
@@ -169,13 +172,15 @@ export class RunningThresholdGraphComponent implements OnInit, OnChanges {
   }
 
   private buildChart(): void {
-    if (!this.trendPoints?.length) {
+    const visibleTrendPoints = this.trendPoints.filter(point => this.isPointInViewedPeriod(point.date));
+
+    if (!visibleTrendPoints.length) {
       this.chartData = [];
       this.currentEstimate = null;
       return;
     }
 
-    this.currentEstimate = this.trendPoints[this.trendPoints.length - 1];
+    this.currentEstimate = visibleTrendPoints[visibleTrendPoints.length - 1];
 
     this.confidenceChipColor =
       this.currentEstimate.confidenceLabel === "high"
@@ -191,25 +196,25 @@ export class RunningThresholdGraphComponent implements OnInit, OnChanges {
     const textColor = isDark ? "#e0e0e0" : "#424242";
     const gridColor = isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)";
 
-    const dates = this.trendPoints.map(p => p.date);
+    const dates = visibleTrendPoints.map(p => p.date);
     // Pace in minutes (as float for Plotly) — inverted axis means lower = faster
-    const paceValues = this.trendPoints.map(p => _.round(p.thresholdPaceSec / 60, 4));
-    const powerValues = this.trendPoints.map(p => p.thresholdPower);
+    const paceValues = visibleTrendPoints.map(p => _.round(p.thresholdPaceSec / 60, 4));
+    const powerValues = visibleTrendPoints.map(p => p.thresholdPower);
     const hasAnyPower = powerValues.some(v => v != null && v > 0);
 
     // Confidence band: ±5% of pace from confidence score
     // High confidence (>70) → ±1%, low confidence (<20) → ±8%
-    const upperBand = this.trendPoints.map(p => {
+    const upperBand = visibleTrendPoints.map(p => {
       const margin = _.round(((1 - p.confidence / 100) * 0.08 + 0.01) * (p.thresholdPaceSec / 60), 4);
       return _.round(p.thresholdPaceSec / 60 + margin, 4);
     });
-    const lowerBand = this.trendPoints.map(p => {
+    const lowerBand = visibleTrendPoints.map(p => {
       const margin = _.round(((1 - p.confidence / 100) * 0.08 + 0.01) * (p.thresholdPaceSec / 60), 4);
       return _.round(Math.max(0, p.thresholdPaceSec / 60 - margin), 4);
     });
 
     // Custom hover: display as mm:ss
-    const hoverText = this.trendPoints.map(
+    const hoverText = visibleTrendPoints.map(
       p =>
         `${p.date}<br>Threshold: <b>${this.formatPace(p.thresholdPaceSec)}/km</b>` +
         (p.thresholdPower ? `<br>Power: <b>${p.thresholdPower}W</b>` : "") +
@@ -326,5 +331,14 @@ export class RunningThresholdGraphComponent implements OnInit, OnChanges {
       ticks.push(s);
     }
     return ticks;
+  }
+
+  private isPointInViewedPeriod(date: string | Date): boolean {
+    if (!this.periodViewed?.from || !this.periodViewed?.to) {
+      return true;
+    }
+
+    const pointDate = moment(date);
+    return pointDate.isBetween(this.periodViewed.from, this.periodViewed.to, "day", "[]");
   }
 }

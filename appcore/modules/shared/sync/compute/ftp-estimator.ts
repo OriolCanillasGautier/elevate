@@ -83,8 +83,8 @@ export class FtpEstimator {
       power.variabilityIndex > 0
         ? power.variabilityIndex
         : power.weighted > 0 && power.avg > 0
-          ? power.weighted / power.avg
-          : 1.0;
+        ? power.weighted / power.avg
+        : 1.0;
 
     // Long rides are almost always endurance
     if (durationMinutes > 120) return "endurance";
@@ -958,7 +958,7 @@ export class FtpEstimator {
 
     while (currentMs <= endMs) {
       // Find the most recent smoothed estimate at or before this date
-      let closest: (typeof smoothed)[0] | null = null;
+      let closest: typeof smoothed[0] | null = null;
       for (let j = smoothed.length - 1; j >= 0; j--) {
         if (smoothed[j].dateMs <= currentMs) {
           closest = smoothed[j];
@@ -1165,8 +1165,8 @@ export class FtpEstimator {
           activity.stats.power.variabilityIndex > 0
             ? activity.stats.power.variabilityIndex
             : np > 0 && avgP > 0
-              ? np / avgP
-              : 1.0;
+            ? np / avgP
+            : 1.0;
 
         const effectiveVI = Math.min(vi, runViCap(durationMinutes));
         const estPower = _.round(np * effectiveVI, 0);
@@ -1257,7 +1257,7 @@ export class FtpEstimator {
 
     let currentMs = firstDateMs;
     while (currentMs <= endMs) {
-      let closest: (typeof smoothed)[0] | null = null;
+      let closest: typeof smoothed[0] | null = null;
       for (let j = smoothed.length - 1; j >= 0; j--) {
         if (smoothed[j].dateMs <= currentMs) {
           closest = smoothed[j];

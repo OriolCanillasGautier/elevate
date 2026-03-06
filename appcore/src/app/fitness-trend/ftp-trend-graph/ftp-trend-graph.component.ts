@@ -3,6 +3,8 @@ import _ from "lodash";
 import { AppService } from "../../shared/services/app-service/app.service";
 import { Theme } from "../../shared/enums/theme.enum";
 import { FtpTrendPoint } from "@elevate/shared/models/ftp-estimate.model";
+import { PeriodModel } from "../shared/models/period.model";
+import moment from "moment";
 
 /**
  * FTP Trend Graph Component.
@@ -144,6 +146,9 @@ export class FtpTrendGraphComponent implements OnInit, OnChanges {
   @Input()
   public trendPoints: FtpTrendPoint[];
 
+  @Input()
+  public periodViewed: PeriodModel;
+
   public chartData: any[];
   public chartLayout: any;
   public chartConfig: any;
@@ -180,23 +185,25 @@ export class FtpTrendGraphComponent implements OnInit, OnChanges {
   }
 
   private buildChart(): void {
-    if (!this.trendPoints || this.trendPoints.length === 0) {
+    const visibleTrendPoints = (this.trendPoints || []).filter(point => this.isPointInViewedPeriod(point.date));
+
+    if (visibleTrendPoints.length === 0) {
       this.chartData = [];
       this.currentEstimate = null;
       return;
     }
 
     // Most recent estimate
-    this.currentEstimate = this.trendPoints[this.trendPoints.length - 1];
+    this.currentEstimate = visibleTrendPoints[visibleTrendPoints.length - 1];
     this.confidenceChipColor = this.getConfidenceColor(this.currentEstimate.confidenceLabel);
 
-    const dates = this.trendPoints.map(p => p.date);
-    const ftpValues = this.trendPoints.map(p => p.ftp);
-    const confidences = this.trendPoints.map(p => p.confidence);
+    const dates = visibleTrendPoints.map(p => p.date);
+    const ftpValues = visibleTrendPoints.map(p => p.ftp);
+    const confidences = visibleTrendPoints.map(p => p.confidence);
 
     // Confidence-based upper/lower band (± proportional to inverse confidence)
-    const upperBand = this.trendPoints.map(p => p.ftp + (100 - p.confidence) * 0.3);
-    const lowerBand = this.trendPoints.map(p => Math.max(0, p.ftp - (100 - p.confidence) * 0.3));
+    const upperBand = visibleTrendPoints.map(p => p.ftp + (100 - p.confidence) * 0.3);
+    const lowerBand = visibleTrendPoints.map(p => Math.max(0, p.ftp - (100 - p.confidence) * 0.3));
 
     const textColor = this.isDarkTheme ? "white" : "black";
     const gridColor = this.isDarkTheme ? "#4d4d4d" : "#efefef";
@@ -241,7 +248,7 @@ export class FtpTrendGraphComponent implements OnInit, OnChanges {
     };
 
     // Manual override markers (if any)
-    const manualPoints = this.trendPoints.filter(p => p.manualOverride != null);
+    const manualPoints = visibleTrendPoints.filter(p => p.manualOverride != null);
     const manualTrace: any = {
       x: manualPoints.map(p => p.date),
       y: manualPoints.map(p => p.manualOverride),
@@ -296,6 +303,15 @@ export class FtpTrendGraphComponent implements OnInit, OnChanges {
       default:
         return "primary";
     }
+  }
+
+  private isPointInViewedPeriod(date: string | Date): boolean {
+    if (!this.periodViewed?.from || !this.periodViewed?.to) {
+      return true;
+    }
+
+    const pointDate = moment(date);
+    return pointDate.isBetween(this.periodViewed.from, this.periodViewed.to, "day", "[]");
   }
 
   public onPointClicked(point: FtpTrendPoint): void {

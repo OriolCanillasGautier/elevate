@@ -77,8 +77,9 @@ export class GlobalSettingsComponent implements OnInit, OnDestroy {
             });
           }
         } else if (option.type === GlobalSettingsService.TYPE_OPTION_LIST) {
+          const currentValue = _.propertyOf(userSettings)(option.key);
           option.active = _.find(option.list, {
-            key: _.propertyOf(userSettings)(option.key)
+            key: String(currentValue)
           });
         } else if (
           option.type === GlobalSettingsService.TYPE_OPTION_NUMBER ||
@@ -90,6 +91,16 @@ export class GlobalSettingsComponent implements OnInit, OnDestroy {
         }
       });
     });
+  }
+
+  private normalizeListOptionValue(option: OptionModel, rawValue: string): any {
+    const defaultValue = _.propertyOf(UserSettings.getDefaultsByBuildTarget(environment.buildTarget))(option.key);
+
+    if (_.isNumber(defaultValue)) {
+      return Number(rawValue);
+    }
+
+    return rawValue;
   }
 
   public onOptionChange(option: OptionModel): void {
@@ -109,7 +120,7 @@ export class GlobalSettingsComponent implements OnInit, OnDestroy {
       }
     } else if (option.type === GlobalSettingsService.TYPE_OPTION_LIST) {
       optionKey = option.key;
-      optionValue = option.active.key;
+      optionValue = this.normalizeListOptionValue(option, option.active.key);
     } else if (option.type === GlobalSettingsService.TYPE_OPTION_TEXT) {
       optionKey = option.key;
       optionValue = option.value;

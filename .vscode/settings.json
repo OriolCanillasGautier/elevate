@@ -11,5 +11,8 @@
     "typescriptreact",
     "html",
     "yaml"
-  ]
+  ],
+  "chat.tools.terminal.autoApprove": {
+    "npm run build:appcore@dev": true
+  }
 }

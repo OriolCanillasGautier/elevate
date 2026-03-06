@@ -13,6 +13,31 @@ export class GlobalSettingsService {
   public static readonly TYPE_OPTION_LIST: string = "list";
   public static readonly TYPE_OPTION_NUMBER: string = "number";
   public static readonly TYPE_OPTION_TEXT: string = "text";
+  private static readonly FITNESS_PERIOD_OPTIONS: ListItemModel[] = [
+    { key: "7_days", name: "7 days" },
+    { key: "14_days", name: "14 days" },
+    { key: "month", name: "30 days" },
+    { key: "6_weeks", name: "6 weeks" },
+    { key: "2_months", name: "2 months" },
+    { key: "3_months", name: "3 months" },
+    { key: "4_months", name: "4 months" },
+    { key: "5_months", name: "5 months" },
+    { key: "6_months", name: "6 months" },
+    { key: "9_months", name: "9 months" },
+    { key: "12_months", name: "12 months" },
+    { key: "24_months", name: "24 months" },
+    { key: "beginning", name: "Since beginning" }
+  ];
+  private static readonly FITNESS_SMOOTHING_OPTIONS: ListItemModel[] = [0, 2, 3, 4, 5, 7, 10, 14, 20, 30].map(
+    value => ({ key: String(value), name: value === 0 ? "None" : `${value} days` })
+  );
+  private static readonly ACTIVITY_SMOOTHING_OPTIONS: ListItemModel[] = [0, 2, 5, 10, 15, 20, 30, 60, 120, 180, 300].map(
+    value => ({ key: String(value), name: value === 0 ? "None" : value < 60 ? `${value} sec` : `${value / 60} min` })
+  );
+  private static readonly ACTIVITY_SCALE_OPTIONS: ListItemModel[] = [
+    { key: "distance", name: "Distance" },
+    { key: "time", name: "Time" }
+  ];
 
   public readonly sections: SectionModel[] = [
     {
@@ -81,6 +106,50 @@ export class GlobalSettingsService {
       buildTarget: BuildTarget.DESKTOP,
       options: [
         {
+          key: "activityGraphDefaultShowGraph",
+          type: "checkbox",
+          title: "Open analysis graph automatically",
+          labels: ["All"],
+          disableHelper: true
+        },
+        {
+          key: "activityGraphDefaultScale",
+          type: "list",
+          title: "Default analysis graph scale",
+          labels: ["All"],
+          list: GlobalSettingsService.ACTIVITY_SCALE_OPTIONS,
+          disableHelper: true
+        },
+        {
+          key: "activityGraphDefaultSmoothingSeconds",
+          type: "list",
+          title: "Default analysis graph smoothing",
+          labels: ["All"],
+          list: GlobalSettingsService.ACTIVITY_SMOOTHING_OPTIONS,
+          disableHelper: true
+        },
+        {
+          key: "activityGraphDefaultShowElevation",
+          type: "checkbox",
+          title: "Show Elevation series by default",
+          labels: ["Cycling", "Running"],
+          disableHelper: true
+        },
+        {
+          key: "activityGraphDefaultShowSpeed",
+          type: "checkbox",
+          title: "Show Speed/Pace series by default",
+          labels: ["Cycling", "Running"],
+          disableHelper: true
+        },
+        {
+          key: "activityGraphDefaultShowHeartRate",
+          type: "checkbox",
+          title: "Show Heart Rate series by default",
+          labels: ["Cycling", "Running"],
+          disableHelper: true
+        },
+        {
           key: "activityGraphDefaultShowPower",
           type: "checkbox",
           title: "Show Power series by default",
@@ -92,6 +161,63 @@ export class GlobalSettingsService {
           type: "checkbox",
           title: "Show Cadence series by default",
           labels: ["Cycling", "Running"],
+          disableHelper: true
+        }
+      ]
+    },
+    {
+      title: "Fitness Trend defaults",
+      buildTarget: BuildTarget.DESKTOP,
+      options: [
+        {
+          key: "fitnessTrendDefaultPeriod",
+          type: "list",
+          title: "Default fitness screen time range",
+          labels: ["Fitness", "FTP", "Running Threshold"],
+          list: GlobalSettingsService.FITNESS_PERIOD_OPTIONS,
+          disableHelper: true
+        },
+        {
+          key: "fitnessTrendDefaultSmoothingDays",
+          type: "list",
+          title: "Default fitness graph smoothing",
+          labels: ["Fitness"],
+          list: GlobalSettingsService.FITNESS_SMOOTHING_OPTIONS,
+          disableHelper: true
+        },
+        {
+          key: "fitnessTrendDefaultShowTrainingZones",
+          type: "checkbox",
+          title: "Enable training zones overlay by default",
+          labels: ["Fitness"],
+          disableHelper: true
+        },
+        {
+          key: "fitnessTrendDefaultUsePowerMeter",
+          type: "checkbox",
+          title: "Include power-meter activities by default",
+          labels: ["Fitness"],
+          disableHelper: true
+        },
+        {
+          key: "fitnessTrendDefaultIncludeSwim",
+          type: "checkbox",
+          title: "Include swim activities by default",
+          labels: ["Fitness"],
+          disableHelper: true
+        },
+        {
+          key: "fitnessTrendDefaultIncludeEBikeRides",
+          type: "checkbox",
+          title: "Include e-bike rides by default",
+          labels: ["Fitness"],
+          disableHelper: true
+        },
+        {
+          key: "fitnessTrendDefaultExcludeIndoorTrainerFtp",
+          type: "checkbox",
+          title: "Exclude indoor trainer rides from FTP trend by default",
+          labels: ["FTP"],
           disableHelper: true
         }
       ]

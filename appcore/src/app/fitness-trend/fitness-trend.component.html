@@ -68,7 +68,8 @@
     </div>
 
     <app-fitness-trend-graph [dateMax]="dateMax" [dateMin]="dateMin" [fitnessTrend]="fitnessTrend"
-      [isTrainingZonesEnabled]="isTrainingZonesEnabled" [periodViewed]="periodViewed">
+      [isTrainingZonesEnabled]="isTrainingZonesEnabled" [periodViewed]="periodViewed"
+      [defaultSmoothingDays]="defaultSmoothingDays">
     </app-fitness-trend-graph>
 
   </mat-card-content>
@@ -93,7 +94,7 @@
     </div>
   </mat-card-subtitle>
   <mat-card-content>
-    <app-ftp-trend-graph [trendPoints]="ftpTrendPoints"></app-ftp-trend-graph>
+    <app-ftp-trend-graph [trendPoints]="ftpTrendPoints" [periodViewed]="periodViewed"></app-ftp-trend-graph>
   </mat-card-content>
 </mat-card>
 
@@ -108,7 +109,7 @@
     heart rate. Terrain is automatically corrected — hills don't skew the estimate.
   </mat-card-subtitle>
   <mat-card-content>
-    <app-running-threshold-graph [trendPoints]="runningThresholdPoints"></app-running-threshold-graph>
+    <app-running-threshold-graph [trendPoints]="runningThresholdPoints" [periodViewed]="periodViewed"></app-running-threshold-graph>
   </mat-card-content>
 </mat-card>
 

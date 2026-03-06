@@ -125,6 +125,7 @@ export class ActivityViewComponent implements OnInit, OnDestroy {
       .then((userSettings: DesktopUserSettings) => {
         this.userSettings = userSettings;
         this.athleteSnapshotDisplay = this.formatAthleteSnapshot(this.activity, this.userSettings.systemUnit);
+        this.displayGraph = this.userSettings?.activityGraphDefaultShowGraph ?? false;
 
         // Fetch associated stream if exists
         return this.streamsService.getProcessedById(ProcessStreamMode.DISPLAY, this.activity.id, {
