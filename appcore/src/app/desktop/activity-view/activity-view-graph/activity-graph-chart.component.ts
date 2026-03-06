@@ -17,6 +17,7 @@ import { Constant } from "@elevate/shared/constants/constant";
 import { ElevateException } from "@elevate/shared/exceptions/elevate.exception";
 import { Activity } from "@elevate/shared/models/sync/activity.model";
 import { ElevationSensor } from "../shared/models/sensors/elevation.sensor";
+import { UserSettings } from "@elevate/shared/models/user-settings/user-settings.namespace";
 
 enum ScaleMode {
   TIME,
@@ -68,6 +69,7 @@ export class ActivityGraphChartComponent extends BaseChartComponent<ScatterChart
   ]);
 
   private static readonly DEFAULT_SCALE_MODE: ScaleMode = ScaleMode.DISTANCE;
+  public static readonly SMOOTHING_SEC_OPTIONS: number[] = [0, 2, 5, 10, 15, 20, 30, 60, 120, 180, 300];
   private static readonly YAXIS_RANGE_MARGIN: number = 5;
   private static readonly YAXIS_TICK_FONT: number = 11;
   private static readonly WINDOW_SCALED_YAXIS_PADDING_FACTOR: number = 45;
@@ -87,12 +89,15 @@ export class ActivityGraphChartComponent extends BaseChartComponent<ScatterChart
   @Input()
   public measureSystem: MeasureSystem;
 
+  @Input()
+  public userSettings: UserSettings.DesktopUserSettings;
+
   public readonly ScaleMode = ScaleMode;
+  public readonly smoothingSecOptions: number[] = ActivityGraphChartComponent.SMOOTHING_SEC_OPTIONS.filter(s => s > 0);
 
   public scaleMode: ScaleMode;
-
+  public smoothingSec: number = 0;
   public isZooming: boolean;
-
   public hasDistance: boolean;
 
   private availableSensors: Sensor[];
@@ -196,9 +201,57 @@ export class ActivityGraphChartComponent extends BaseChartComponent<ScatterChart
         hasAreaFill ? sensor.areaColor : null
       );
 
-      // Automatically hide traces when DEFAULT_SENSOR_COUNT_DISPLAYED are displayed
-      addedTrace.visible = index < ActivityGraphChartComponent.DEFAULT_SENSOR_COUNT_DISPLAYED ? true : "legendonly";
+      // Use per-sensor user settings to determine default visibility
+      addedTrace.visible = this.isSensorVisibleByDefault(sensor) ? true : "legendonly";
     }
+  }
+
+  /**
+   * Determine if a sensor should be visible by default based on user settings.
+   * Power and cadence are configurable; all other core sensors default to visible.
+   */
+  private isSensorVisibleByDefault(sensor: Sensor): boolean {
+    if (sensor.streamKey === "watts") {
+      return this.userSettings?.activityGraphDefaultShowPower ?? false;
+    }
+    if (sensor.streamKey === "cadence") {
+      return this.userSettings?.activityGraphDefaultShowCadence ?? false;
+    }
+    // grade_smooth and grade_adjusted_speed are secondary streams — keep hidden by default
+    if (sensor.streamKey === "grade_smooth" || sensor.streamKey === "grade_adjusted_speed") {
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Apply a centered moving average to a numeric stream.
+   * halfWindow=0 returns the original stream unchanged.
+   */
+  private applyMovingAverage(stream: number[], halfWindow: number): number[] {
+    if (halfWindow === 0) {
+      return stream;
+    }
+    const result = new Array<number>(stream.length);
+    for (let i = 0; i < stream.length; i++) {
+      const start = Math.max(0, i - halfWindow);
+      const end = Math.min(stream.length - 1, i + halfWindow);
+      let sum = 0;
+      let count = 0;
+      for (let j = start; j <= end; j++) {
+        const v = stream[j];
+        if (v != null && !isNaN(v)) {
+          sum += v;
+          count++;
+        }
+      }
+      result[i] = count > 0 ? sum / count : stream[i];
+    }
+    return result;
+  }
+
+  public onSmoothingChange(): void {
+    this.updateActivityGraph();
   }
 
   /**
@@ -210,6 +263,15 @@ export class ActivityGraphChartComponent extends BaseChartComponent<ScatterChart
 
     if (!scaleStream) {
       return;
+    }
+
+    const halfWindow = Math.floor(this.smoothingSec / 2);
+
+    // Pre-smooth all sensor streams once before iterating
+    const smoothedStreams = new Map<string, number[]>();
+    for (const sensor of this.availableSensors) {
+      const raw = this.streams[sensor.streamKey] as number[];
+      smoothedStreams.set(sensor.name, this.applyMovingAverage(raw, halfWindow));
     }
 
     scaleStream.forEach((scaleValue: number, index: number) => {
@@ -232,8 +294,8 @@ export class ActivityGraphChartComponent extends BaseChartComponent<ScatterChart
         // Foreach sensor add x axis formatted time or distance
         (traceData.x as (Datum | number)[]).push(xValue);
 
-        // Foreach sensor add y axis value
-        const sensorStream = this.streams[sensor.streamKey] as number[];
+        // Foreach sensor add y axis value (from smoothed stream)
+        const sensorStream = smoothedStreams.get(sensor.name);
         const yValue = sensor.fromStreamConvert(sensorStream[index], this.measureSystem);
 
         // Test y-axis type

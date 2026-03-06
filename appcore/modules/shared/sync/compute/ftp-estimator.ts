@@ -10,7 +10,9 @@ import {
   ActivityFtpIndicator,
   ActivityKeyPeak,
   IndicatorTrust,
-  CriticalPowerModelParams
+  CriticalPowerModelParams,
+  WBalAnalysis,
+  WBalTrajectoryPoint
 } from "../../models/ftp-estimate.model";
 import { EffortDetector } from "./effort-detector";
 import { PowerDurationModel } from "./power-duration-model";
@@ -81,8 +83,8 @@ export class FtpEstimator {
       power.variabilityIndex > 0
         ? power.variabilityIndex
         : power.weighted > 0 && power.avg > 0
-        ? power.weighted / power.avg
-        : 1.0;
+          ? power.weighted / power.avg
+          : 1.0;
 
     // Long rides are almost always endurance
     if (durationMinutes > 120) return "endurance";
@@ -358,7 +360,8 @@ export class FtpEstimator {
       keyPeaks,
       allPeaks,
       cpModelParams,
-      rideIntensity
+      rideIntensity,
+      wBal: null
     };
   }
 
@@ -670,13 +673,128 @@ export class FtpEstimator {
   }
 
   /**
-   * Compute an FTP trend over time using per-ride NP-adjusted estimates
+   * Compute W'bal (W-prime Balance) for a single activity using power streams.
+   *
+   * Uses the Skiba differential model:
+   *   - When P > CP: W'bal depletes by (P - CP) × Δt
+   *   - When P ≤ CP: W'bal recovers toward W' with time constant
+   *       τ = 546 × e^(-0.01 × (CP - P)) + 316
+   *
+   * Requires CP model parameters (cp, wPrime) and the activity's power stream.
+   *
+   * @param powerStream Power data array (watts per sample)
+   * @param timeStream Time data array (seconds from start, same length as powerStream)
+   * @param cp Critical Power in watts
+   * @param wPrime W' (anaerobic work capacity) in joules
+   * @param trajectorySampleInterval Interval in seconds between trajectory points (default: 10)
+   * @returns W'bal analysis or null if inputs are invalid
+   */
+  public static computeWBal(
+    powerStream: number[],
+    timeStream: number[],
+    cp: number,
+    wPrime: number,
+    trajectorySampleInterval: number = 10
+  ): WBalAnalysis | null {
+    if (
+      !powerStream?.length ||
+      !timeStream?.length ||
+      powerStream.length !== timeStream.length ||
+      cp <= 0 ||
+      wPrime <= 0
+    ) {
+      return null;
+    }
+
+    let wBal = wPrime;
+    let minWBal = wPrime;
+    let minWBalTime = 0;
+    let totalWPrimeExpended = 0;
+    let matchesBurned = 0;
+    let wasAbove50 = true; // Track crossings below 50%
+
+    const trajectory: WBalTrajectoryPoint[] = [];
+    let nextTrajectoryTime = 0;
+
+    for (let i = 1; i < powerStream.length; i++) {
+      const dt = timeStream[i] - timeStream[i - 1];
+      if (dt <= 0) continue;
+
+      const power = powerStream[i];
+
+      if (power > cp) {
+        // Depleting W'bal
+        const expenditure = (power - cp) * dt;
+        wBal -= expenditure;
+        totalWPrimeExpended += expenditure;
+      } else {
+        // Recovering W'bal — time constant depends on how far below CP
+        const tau = 546 * Math.exp(-0.01 * (cp - power)) + 316;
+        wBal = wBal + (wPrime - wBal) * (1 - Math.exp(-dt / tau));
+      }
+
+      // Clamp to [0, wPrime]
+      wBal = Math.max(0, Math.min(wPrime, wBal));
+
+      // Track minimum
+      if (wBal < minWBal) {
+        minWBal = wBal;
+        minWBalTime = timeStream[i];
+      }
+
+      // Track "matches burned" (crossings below 50%)
+      const isAbove50 = wBal >= wPrime * 0.5;
+      if (wasAbove50 && !isAbove50) {
+        matchesBurned++;
+      }
+      wasAbove50 = isAbove50;
+
+      // Sample trajectory at regular intervals
+      if (timeStream[i] >= nextTrajectoryTime) {
+        trajectory.push({
+          time: timeStream[i],
+          wBal: _.round(wBal, 0),
+          wBalPercent: _.round((wBal / wPrime) * 100, 1)
+        });
+        nextTrajectoryTime = timeStream[i] + trajectorySampleInterval;
+      }
+    }
+
+    // Ensure last point is included
+    const lastTime = timeStream[timeStream.length - 1];
+    if (trajectory.length === 0 || trajectory[trajectory.length - 1].time < lastTime) {
+      trajectory.push({
+        time: lastTime,
+        wBal: _.round(wBal, 0),
+        wBalPercent: _.round((wBal / wPrime) * 100, 1)
+      });
+    }
+
+    return {
+      wPrime,
+      cp,
+      minWBal: _.round(minWBal, 0),
+      minWBalPercent: _.round((minWBal / wPrime) * 100, 1),
+      minWBalTime: _.round(minWBalTime, 0),
+      totalWPrimeExpended: _.round(totalWPrimeExpended, 0),
+      matchesBurned,
+      endWBal: _.round(wBal, 0),
+      trajectory
+    };
+  }
+
+  /**
+   * Compute an FTP trend over time using per-ride best-indicator estimates
    * with exponential smoothing.
    *
-   * Instead of fitting a volatile CP model at each window, this:
-   * 1. Computes the NP-adjusted FTP for every qualifying ride
+   * Uses the same multi-method analysis as estimateFromActivity() to pick
+   * the best FTP indicator for each ride, so the trend matches the values
+   * shown on individual activities. Falls back to NP-adjusted when no
+   * indicators are produced.
+   *
+   * 1. Computes the best FTP indicator for every qualifying ride
    * 2. Applies an exponential weighted moving average (EWMA) for smooth progression
-   * 3. Uses ride intensity to weight contributions (threshold > tempo > endurance)
+   * 3. Uses indicator trust level to weight contributions (high > medium > low)
    * 4. Applies inactivity decay so FTP drops during training gaps (~5% per 90 days)
    * 5. Optionally modulates decay by CTL (fitness) changes
    * 6. Optionally excludes indoor trainer rides
@@ -729,7 +847,7 @@ export class FtpEstimator {
       return [];
     }
 
-    // ── Compute NP-adjusted FTP + weight for each qualifying ride ──
+    // ── Compute best-indicator FTP + weight for each qualifying ride ──
     const rideEstimates: Array<{
       date: string;
       dateMs: number;
@@ -739,24 +857,17 @@ export class FtpEstimator {
     }> = [];
 
     for (const activity of cyclingActivities) {
-      const npFtp = FtpEstimator.computeNpAdjustedFtp(activity);
-      if (npFtp == null || npFtp <= 0) continue;
+      // Use NP-adjusted FTP only — most accurate for regular rides
+      const rideFtp = FtpEstimator.computeNpAdjustedFtp(activity);
+      if (rideFtp == null || rideFtp <= 0) continue;
 
       const intensity = FtpEstimator.classifyRideIntensity(activity);
 
-      // Base weight by ride intensity: threshold rides are most reliable
+      // Base weight from ride intensity
       let weight: number;
-      switch (intensity) {
-        case "threshold":
-          weight = 1.0;
-          break;
-        case "tempo":
-          weight = 0.7;
-          break;
-        case "endurance":
-          weight = 0.5;
-          break;
-      }
+      if (intensity === "threshold") weight = 1.0;
+      else if (intensity === "tempo") weight = 0.75;
+      else weight = 0.5;
 
       // HR-based weight modulation: rides at higher %HRmax are more reliable
       const hr = activity.stats?.heartRate;
@@ -770,7 +881,7 @@ export class FtpEstimator {
       rideEstimates.push({
         date: new Date(activity.startTime).toISOString().split("T")[0],
         dateMs: new Date(activity.startTime).getTime(),
-        ftp: npFtp,
+        ftp: rideFtp,
         intensity,
         weight
       });
@@ -847,7 +958,7 @@ export class FtpEstimator {
 
     while (currentMs <= endMs) {
       // Find the most recent smoothed estimate at or before this date
-      let closest: typeof smoothed[0] | null = null;
+      let closest: (typeof smoothed)[0] | null = null;
       for (let j = smoothed.length - 1; j >= 0; j--) {
         if (smoothed[j].dateMs <= currentMs) {
           closest = smoothed[j];
@@ -1054,8 +1165,8 @@ export class FtpEstimator {
           activity.stats.power.variabilityIndex > 0
             ? activity.stats.power.variabilityIndex
             : np > 0 && avgP > 0
-            ? np / avgP
-            : 1.0;
+              ? np / avgP
+              : 1.0;
 
         const effectiveVI = Math.min(vi, runViCap(durationMinutes));
         const estPower = _.round(np * effectiveVI, 0);
@@ -1146,7 +1257,7 @@ export class FtpEstimator {
 
     let currentMs = firstDateMs;
     while (currentMs <= endMs) {
-      let closest: typeof smoothed[0] | null = null;
+      let closest: (typeof smoothed)[0] | null = null;
       for (let j = smoothed.length - 1; j >= 0; j--) {
         if (smoothed[j].dateMs <= currentMs) {
           closest = smoothed[j];

@@ -12,7 +12,7 @@
                (hover)="onHover($event)"
                (unhover)="onUnHover()">
   </plotly-plot>
-  <div fxFlexFill fxLayout="row" fxLayoutAlign="center start">
+  <div fxFlexFill fxLayout="row" fxLayoutAlign="center start" fxLayoutGap="8px">
     <button *ngIf="isZooming" mat-button color="primary" (click)="onUserResetZoom()">
       <mat-icon [inline]="true" fontSet="material-icons-outlined">zoom_out</mat-icon>
       Zoom out
@@ -31,5 +31,15 @@
         Time scale
       </button>
     </ng-container>
+
+    <mat-form-field appearance="outline" style="font-size: 12px; width: 160px;">
+      <mat-label>Smoothing</mat-label>
+      <mat-select [(ngModel)]="smoothingSec" (ngModelChange)="onSmoothingChange()">
+        <mat-option [value]="0">None</mat-option>
+        <mat-option *ngFor="let s of smoothingSecOptions" [value]="s">
+          {{s < 60 ? s + 's' : (s / 60 | number:'1.0-0') + ' min'}}
+        </mat-option>
+      </mat-select>
+    </mat-form-field>
   </div>
 </div>

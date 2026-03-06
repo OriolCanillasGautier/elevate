@@ -103,3 +103,13 @@
     </button>
   </div>
 </div>
+
+<div fxLayout="row" fxLayoutAlign="center center" style="padding: 4px 0;">
+  <mat-form-field appearance="outline" style="font-size: 12px; width: 160px;">
+    <mat-label>Smoothing</mat-label>
+    <mat-select [(ngModel)]="smoothingDays" (ngModelChange)="onSmoothingDaysChange()">
+      <mat-option [value]="0">None</mat-option>
+      <mat-option *ngFor="let d of smoothingDayOptions" [value]="d">{{d}} days</mat-option>
+    </mat-select>
+  </mat-form-field>
+</div>

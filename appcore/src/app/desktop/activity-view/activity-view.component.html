@@ -99,7 +99,8 @@
     </div>
 
     <app-activity-graph-chart *ngIf="streams && displayGraph && !activity.isSwimPool"
-      [measureSystem]="userSettings.systemUnit" [activity]="activity" [streams]="streams">
+      [measureSystem]="userSettings.systemUnit" [activity]="activity" [streams]="streams"
+      [userSettings]="userSettings">
     </app-activity-graph-chart>
 
     <div *ngIf="streams && !activity.isSwimPool" fxLayoutAlign="center start" fxFill
@@ -157,7 +158,7 @@
 
       <mat-tab label="FTP Estimate" *ngIf="hasCyclingPowerMeter">
         <ng-template matTabContent>
-          <app-activity-view-ftp-estimate [activity]="activity">
+          <app-activity-view-ftp-estimate [activity]="activity" [streams]="streams">
           </app-activity-view-ftp-estimate>
         </ng-template>
       </mat-tab>

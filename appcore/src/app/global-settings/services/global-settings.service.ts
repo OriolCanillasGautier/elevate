@@ -77,6 +77,26 @@ export class GlobalSettingsService {
       ]
     },
     {
+      title: "Activity Analysis Graph defaults",
+      buildTarget: BuildTarget.DESKTOP,
+      options: [
+        {
+          key: "activityGraphDefaultShowPower",
+          type: "checkbox",
+          title: "Show Power series by default",
+          labels: ["Cycling", "Running"],
+          disableHelper: true
+        },
+        {
+          key: "activityGraphDefaultShowCadence",
+          type: "checkbox",
+          title: "Show Cadence series by default",
+          labels: ["Cycling", "Running"],
+          disableHelper: true
+        }
+      ]
+    },
+    {
       title: "History consistency warnings",
       options: [
         {

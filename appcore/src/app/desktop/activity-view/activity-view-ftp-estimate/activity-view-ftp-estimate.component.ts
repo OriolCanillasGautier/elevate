@@ -6,8 +6,10 @@ import {
   ActivityFtpAnalysis,
   ActivityFtpIndicator,
   ActivityKeyPeak,
-  IndicatorTrust
+  IndicatorTrust,
+  WBalAnalysis
 } from "@elevate/shared/models/ftp-estimate.model";
+import { Streams } from "@elevate/shared/models/activity-data/streams.model";
 
 /**
  * Shows per-activity FTP indicators derived from the ride's power data.
@@ -70,6 +72,50 @@ import {
           </div>
           <span class="pd-power">{{ peak.power }}W</span>
           <span class="pd-wkg mat-caption" *ngIf="athleteWeight > 0">&nbsp;/ {{ roundWkg(peak.power) }} W/kg</span>
+        </div>
+      </div>
+
+      <!-- W'bal Section -->
+      <div class="wbal-section" *ngIf="wBalAnalysis">
+        <div class="section-header mat-caption">W' Balance</div>
+        <div class="wbal-summary" fxLayout="row wrap" fxLayoutGap="24px" fxLayoutAlign="start center">
+          <div class="wbal-stat">
+            <span class="wbal-stat-label mat-caption">W'</span>
+            <span class="wbal-stat-value">{{ formatKj(wBalAnalysis.wPrime) }} kJ</span>
+          </div>
+          <div class="wbal-stat">
+            <span class="wbal-stat-label mat-caption">CP</span>
+            <span class="wbal-stat-value">{{ wBalAnalysis.cp }}W</span>
+          </div>
+          <div class="wbal-stat">
+            <span class="wbal-stat-label mat-caption">Min W'bal</span>
+            <span
+              class="wbal-stat-value"
+              [class.wbal-critical]="wBalAnalysis.minWBalPercent < 25"
+              [class.wbal-warning]="wBalAnalysis.minWBalPercent >= 25 && wBalAnalysis.minWBalPercent < 50"
+            >
+              {{ wBalAnalysis.minWBalPercent }}%
+            </span>
+            <span class="wbal-stat-detail mat-caption"
+              >({{ formatKj(wBalAnalysis.minWBal) }} kJ at {{ formatTime(wBalAnalysis.minWBalTime) }})</span
+            >
+          </div>
+          <div class="wbal-stat">
+            <span class="wbal-stat-label mat-caption">Matches burned</span>
+            <span class="wbal-stat-value">{{ wBalAnalysis.matchesBurned }}</span>
+          </div>
+          <div class="wbal-stat">
+            <span class="wbal-stat-label mat-caption">Total W' expended</span>
+            <span class="wbal-stat-value">{{ formatKj(wBalAnalysis.totalWPrimeExpended) }} kJ</span>
+          </div>
+          <div class="wbal-stat">
+            <span class="wbal-stat-label mat-caption">End W'bal</span>
+            <span class="wbal-stat-value"
+              >{{ wBalAnalysis.endWBal >= 0 ? formatKj(wBalAnalysis.endWBal) : "0" }} kJ ({{
+                Math.max(0, (wBalAnalysis.endWBal / wBalAnalysis.wPrime) * 100) | number: "1.0-0"
+              }}%)
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -257,6 +303,49 @@ import {
         text-align: center;
         opacity: 0.6;
       }
+
+      .wbal-section {
+        margin-top: 24px;
+        padding-top: 16px;
+        border-top: 1px solid rgba(128, 128, 128, 0.15);
+      }
+
+      .wbal-summary {
+        margin-top: 8px;
+      }
+
+      .wbal-stat {
+        min-width: 100px;
+        margin-bottom: 12px;
+      }
+
+      .wbal-stat-label {
+        display: block;
+        opacity: 0.5;
+        text-transform: uppercase;
+        font-size: 10px;
+        letter-spacing: 0.5px;
+        margin-bottom: 2px;
+      }
+
+      .wbal-stat-value {
+        font-size: 18px;
+        font-weight: 500;
+      }
+
+      .wbal-stat-detail {
+        display: block;
+        opacity: 0.6;
+        font-size: 11px;
+      }
+
+      .wbal-critical {
+        color: #f44336;
+      }
+
+      .wbal-warning {
+        color: #ff9800;
+      }
     `
   ]
 })
@@ -264,11 +353,16 @@ export class ActivityViewFtpEstimateComponent implements OnInit {
   @Input()
   public activity: Activity;
 
+  @Input()
+  public streams: Streams;
+
+  public Math = Math;
   public hasPowerData: boolean;
   public hasAnyPeak: boolean;
   public analysis: ActivityFtpAnalysis | null;
   public npIndicator: ActivityFtpIndicator | null;
   public athleteWeight: number;
+  public wBalAnalysis: WBalAnalysis | null;
 
   private maxPower: number;
 
@@ -279,6 +373,7 @@ export class ActivityViewFtpEstimateComponent implements OnInit {
     this.npIndicator = null;
     this.hasAnyPeak = (this.activity?.stats?.power?.peaks?.length || 0) > 0;
     this.maxPower = 0;
+    this.wBalAnalysis = null;
 
     if (this.hasPowerData) {
       this.analysis = FtpEstimator.estimateFromActivity(this.activity, this.athleteWeight);
@@ -289,7 +384,28 @@ export class ActivityViewFtpEstimateComponent implements OnInit {
         if (this.analysis.allPeaks?.length > 0) {
           this.maxPower = Math.max(...this.analysis.allPeaks.map(p => p.power));
         }
+
+        // Compute W'bal if streams and CP model params are available
+        this.computeWBal();
       }
+    }
+  }
+
+  private computeWBal(): void {
+    if (!this.streams?.watts?.length || !this.streams?.time?.length) {
+      return;
+    }
+
+    // Get CP/W' from the per-activity CP model fit, or from cross-ride estimate
+    const cpParams = this.analysis?.cpModelParams;
+    if (cpParams?.cp > 0 && cpParams?.wPrime > 0) {
+      this.wBalAnalysis = FtpEstimator.computeWBal(this.streams.watts, this.streams.time, cpParams.cp, cpParams.wPrime);
+    } else if (this.analysis?.bestIndicator) {
+      // Estimate CP from best FTP indicator (CP ≈ FTP / 0.95)
+      // and use a default W' of 20 kJ (conservative estimate for recreational cyclists)
+      const estimatedCp = _.round(this.analysis.bestIndicator.ftp / 0.95, 0);
+      const defaultWPrime = 20000; // 20 kJ
+      this.wBalAnalysis = FtpEstimator.computeWBal(this.streams.watts, this.streams.time, estimatedCp, defaultWPrime);
     }
   }
 
@@ -308,5 +424,20 @@ export class ActivityViewFtpEstimateComponent implements OnInit {
 
   public roundWkg(power: number): string {
     return this.athleteWeight > 0 ? _.round(power / this.athleteWeight, 2).toFixed(2) : "—";
+  }
+
+  public formatKj(joules: number): string {
+    return _.round(joules / 1000, 1).toFixed(1);
+  }
+
+  public formatTime(seconds: number): string {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    if (m >= 60) {
+      const h = Math.floor(m / 60);
+      const rm = m % 60;
+      return `${h}h${rm.toString().padStart(2, "0")}m`;
+    }
+    return `${m}:${s.toString().padStart(2, "0")}`;
   }
 }

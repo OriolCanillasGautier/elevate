@@ -38,6 +38,11 @@
       <mat-icon fontSet="material-icons-outlined">refresh</mat-icon>
     </button>
 
+    <button *ngIf="canAutoCalculate" (click)="onAutoCalculateZones()" id="autoCalculateZones" mat-icon-button
+            matTooltip="Auto-calculate from athlete profile (FTP / Max HR)">
+      <mat-icon fontSet="material-icons-outlined">auto_awesome</mat-icon>
+    </button>
+
     <button (click)="onImportZones()" id="importZones" mat-icon-button matTooltip="Import zones from a backup">
       <mat-icon fontSet="material-icons-outlined">vertical_align_top</mat-icon>
     </button>

@@ -201,6 +201,68 @@ export interface ActivityFtpAnalysis {
 
   /** Detected ride intensity classification */
   rideIntensity: "endurance" | "tempo" | "threshold";
+
+  /** W'bal (W-prime balance) analysis for this activity, null if unavailable */
+  wBal: WBalAnalysis | null;
+}
+
+/**
+ * W'bal (W-prime Balance) analysis for a single activity.
+ *
+ * Tracks the depletion and recovery of the anaerobic work capacity (W')
+ * during a ride, using the Skiba differential model:
+ *
+ *   When P > CP: W'bal depletes by (P - CP) × Δt joules
+ *   When P ≤ CP: W'bal recovers toward W' with time constant τ
+ *     τ = 546 × e^(-0.01 × (CP - P)) + 316
+ *
+ * Reference: Skiba et al., "Modelling the expenditure and reconstitution
+ * of work capacity above critical power" (2012).
+ */
+export interface WBalAnalysis {
+  /** W' (total anaerobic work capacity) in joules, from the CP model */
+  wPrime: number;
+
+  /** CP (Critical Power) in watts used for this computation */
+  cp: number;
+
+  /** Minimum W'bal reached during the activity (joules) */
+  minWBal: number;
+
+  /** Minimum W'bal as a percentage of W' (0-100) */
+  minWBalPercent: number;
+
+  /** Time (seconds from start) when minimum W'bal occurred */
+  minWBalTime: number;
+
+  /** Total W' expended during the activity (joules above CP) */
+  totalWPrimeExpended: number;
+
+  /** Number of times W'bal dropped below 50% of W' */
+  matchesBurned: number;
+
+  /** W'bal at the end of the activity (joules) */
+  endWBal: number;
+
+  /**
+   * W'bal trajectory sampled at regular intervals for visualization.
+   * Each entry: { time (secs), wBal (joules), wBalPercent (0-100) }
+   */
+  trajectory: WBalTrajectoryPoint[];
+}
+
+/**
+ * A single point on the W'bal trajectory during an activity.
+ */
+export interface WBalTrajectoryPoint {
+  /** Time in seconds from activity start */
+  time: number;
+
+  /** W'bal in joules at this point */
+  wBal: number;
+
+  /** W'bal as percentage of W' (0-100) */
+  wBalPercent: number;
 }
 
 /** A highlighted peak at a standard duration */

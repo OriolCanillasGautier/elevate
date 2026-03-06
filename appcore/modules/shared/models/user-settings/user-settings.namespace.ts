@@ -44,13 +44,17 @@ export namespace UserSettings {
       disableActivitiesNeedRecalculationWarning: DISABLE_ACTIVITIES_NEED_RECALCULATION_WARNING,
       zones: UserZonesModel.DEFAULT_MODEL,
       defaultMapType: DEFAULT_MAP_TYPE,
-      mapToken: null
+      mapToken: null,
+      activityGraphDefaultShowPower: false,
+      activityGraphDefaultShowCadence: false
     };
 
     public buildTarget: BuildTarget = BuildTarget.DESKTOP;
 
     public defaultMapType: MapBoxType = DEFAULT_MAP_TYPE;
     public mapToken: string = null;
+    public activityGraphDefaultShowPower: boolean = false;
+    public activityGraphDefaultShowCadence: boolean = false;
   }
 
   export class ExtensionUserSettings extends BaseUserSettings {

@@ -1,7 +1,12 @@
 import { Inject, Injectable } from "@angular/core";
 import { ActivityService } from "../../../shared/services/activity/activity.service";
 import { FtpEstimator } from "@elevate/shared/sync/compute/ftp-estimator";
-import { FtpEstimate, FtpTrendPoint, RunningThresholdTrendPoint } from "@elevate/shared/models/ftp-estimate.model";
+import {
+  FtpEstimate,
+  FtpTrendPoint,
+  RunningThresholdTrendPoint,
+  WBalAnalysis
+} from "@elevate/shared/models/ftp-estimate.model";
 import { Activity } from "@elevate/shared/models/sync/activity.model";
 import { DayFitnessTrendModel } from "../models/day-fitness-trend.model";
 import { LoggerService } from "../../../shared/services/logging/logger.service";
@@ -127,5 +132,18 @@ export class FtpEstimationService {
       this.logger.error("Error computing running threshold trend:", err);
       return [];
     }
+  }
+
+  /**
+   * Compute W'bal (W-prime Balance) for a single activity.
+   *
+   * @param powerStream Power data array (watts per sample)
+   * @param timeStream Time data array (seconds from activity start)
+   * @param cp Critical Power in watts
+   * @param wPrime W' (anaerobic work capacity) in joules
+   * @returns W'bal analysis or null if inputs are invalid
+   */
+  public computeWBal(powerStream: number[], timeStream: number[], cp: number, wPrime: number): WBalAnalysis | null {
+    return FtpEstimator.computeWBal(powerStream, timeStream, cp, wPrime);
   }
 }

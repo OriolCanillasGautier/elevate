@@ -306,11 +306,12 @@ describe("FtpEstimator", () => {
             peaks,
             undefined,
             null,
-            { weighted: 220, variabilityIndex: 1.05, movingTime: 20 * 60, elapsedTime: 22 * 60 } // 20 min, too short
+            { weighted: 220, variabilityIndex: 1.05, movingTime: 20 * 60, elapsedTime: 22 * 60 } // 20 min, too short for NP
           )
         );
       }
 
+      // NP-based FTP requires >= 45 min rides, so short rides produce no trend
       const result = FtpEstimator.computeTrend(activities, ATHLETE_WEIGHT);
       expect(result.length).toBe(0);
     });

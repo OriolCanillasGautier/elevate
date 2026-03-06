@@ -15,9 +15,9 @@ import { FtpTrendPoint } from "@elevate/shared/models/ftp-estimate.model";
   template: `
     <div class="ftp-trend-container" *ngIf="trendPoints?.length > 0">
       <p class="mat-caption ftp-description">
-        Your FTP is estimated from each qualifying ride using the NP-adjusted method and smoothed over time. Harder
-        rides (threshold) contribute more weight than easy rides (endurance). The confidence band reflects how many
-        rides contributed in each period.
+        Your FTP is estimated from each qualifying ride using the best available method (20-min test, NP-adjusted, or CP
+        model) and smoothed over time. Higher-trust estimates contribute more weight. The confidence band reflects how
+        many rides contributed in each period.
       </p>
 
       <div class="ftp-summary" *ngIf="currentEstimate">

@@ -46,6 +46,7 @@ export class FitnessTrendGraphComponent implements OnInit, OnChanges, OnDestroy 
   public static readonly GRAPH_HEIGHT_FACTOR_MEDIA_MD: number =
     FitnessTrendGraphComponent.GRAPH_HEIGHT_FACTOR_MEDIA_LG / 1.25;
   private static readonly GRAPH_DOM_ELEMENT_ID: string = "fitnessTrendGraph";
+  public static readonly SMOOTHING_DAY_OPTIONS: number[] = [0, 2, 3, 4, 5, 7, 10, 14, 20, 30];
   private static readonly KEY_CODES = {
     DOWN_ARROW: "ArrowDown",
     RIGHT_ARROW: "ArrowRight",
@@ -63,6 +64,8 @@ export class FitnessTrendGraphComponent implements OnInit, OnChanges, OnDestroy 
   public canZoomOutPeriodViewed: boolean;
   public sideNavChangesSubscription: Subscription;
   public windowResizingSubscription: Subscription;
+  public smoothingDays: number = 0;
+  public readonly smoothingDayOptions: number[] = FitnessTrendGraphComponent.SMOOTHING_DAY_OPTIONS.filter(d => d > 0);
 
   @Input()
   public dateMin: Date;
@@ -207,14 +210,41 @@ export class FitnessTrendGraphComponent implements OnInit, OnChanges, OnDestroy 
 
     this.viewableFitnessDataModel = new ViewableFitnessDataModel(
       markers,
-      fatigueLine,
-      fitnessLine,
-      formLine,
-      previewFatigueLine,
-      previewFitnessLine,
-      previewFormLine,
+      this.smoothLine(fatigueLine),
+      this.smoothLine(fitnessLine),
+      this.smoothLine(formLine),
+      this.smoothLine(previewFatigueLine),
+      this.smoothLine(previewFitnessLine),
+      this.smoothLine(previewFormLine),
       activeLine
     );
+  }
+
+  /**
+   * Apply a centered moving average of smoothingDays days to a fitness trend line.
+   * Hidden (preview/future) points are included in averaging to avoid edge artifacts.
+   */
+  private smoothLine(line: GraphPointModel[]): GraphPointModel[] {
+    const half = Math.floor(this.smoothingDays / 2);
+    if (half === 0) {
+      return line;
+    }
+    return line.map((point, i) => {
+      const start = Math.max(0, i - half);
+      const end = Math.min(line.length - 1, i + half);
+      let sum = 0;
+      let count = 0;
+      for (let j = start; j <= end; j++) {
+        sum += line[j].value;
+        count++;
+      }
+      return { ...point, value: count > 0 ? sum / count : point.value };
+    });
+  }
+
+  public onSmoothingDaysChange(): void {
+    this.setupViewableGraphData();
+    this.updateGraph();
   }
 
   public updateGraph(): void {
@@ -498,7 +528,7 @@ export class FitnessTrendGraphComponent implements OnInit, OnChanges, OnDestroy 
       animate_on_load: false,
       transition_on_update: false,
       aggregate_rollover: true,
-      interpolate: d3.curveLinear,
+      interpolate: d3.curveMonotoneX,
       missing_is_hidden: true,
       max_data_size: 6,
       missing_is_hidden_accessor: "hidden",
