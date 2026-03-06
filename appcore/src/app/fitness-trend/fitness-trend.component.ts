@@ -252,7 +252,8 @@ export class FitnessTrendComponent implements OnInit, OnDestroy {
         );
         this.isEBikeRidesEnabled = isEBikeRidesEnabledUserPref
           ? isEBikeRidesEnabledUserPref === "true"
-          : (this.userSettings?.fitnessTrendDefaultIncludeEBikeRides ?? FitnessTrendComponent.ELECTRICAL_BIKE_RIDES_ENABLED);
+          : this.userSettings?.fitnessTrendDefaultIncludeEBikeRides ??
+            FitnessTrendComponent.ELECTRICAL_BIKE_RIDES_ENABLED;
         this.updateSkipActivityTypes(this.isEBikeRidesEnabled);
         this.defaultSmoothingDays = this.userSettings?.fitnessTrendDefaultSmoothingDays ?? 0;
 
@@ -402,17 +403,18 @@ export class FitnessTrendComponent implements OnInit, OnDestroy {
       const isTrainingZonesEnabledUserPref = localStorage.getItem(FitnessTrendComponent.LS_TRAINING_ZONES_ENABLED_KEY);
       this.isTrainingZonesEnabled = isTrainingZonesEnabledUserPref
         ? isTrainingZonesEnabledUserPref === "true"
-        : (this.userSettings?.fitnessTrendDefaultShowTrainingZones ?? FitnessTrendComponent.TRAINING_ZONES_DEFAULT_ENABLED);
+        : this.userSettings?.fitnessTrendDefaultShowTrainingZones ??
+          FitnessTrendComponent.TRAINING_ZONES_DEFAULT_ENABLED;
 
       const isPowerMeterEnabledUserPref = localStorage.getItem(FitnessTrendComponent.LS_POWER_METER_ENABLED_KEY);
       this.isPowerMeterEnabled = isPowerMeterEnabledUserPref
         ? isPowerMeterEnabledUserPref === "true"
-        : (this.userSettings?.fitnessTrendDefaultUsePowerMeter ?? FitnessTrendComponent.POWER_METER_DEFAULT_ENABLED);
+        : this.userSettings?.fitnessTrendDefaultUsePowerMeter ?? FitnessTrendComponent.POWER_METER_DEFAULT_ENABLED;
 
       const isSwimEnabledUserPref = localStorage.getItem(FitnessTrendComponent.LS_SWIM_ENABLED_KEY);
       this.isSwimEnabled = isSwimEnabledUserPref
         ? isSwimEnabledUserPref === "true"
-        : (this.userSettings?.fitnessTrendDefaultIncludeSwim ?? FitnessTrendComponent.SWIM_DEFAULT_ENABLED);
+        : this.userSettings?.fitnessTrendDefaultIncludeSwim ?? FitnessTrendComponent.SWIM_DEFAULT_ENABLED;
     }
   }
 
@@ -444,7 +446,8 @@ export class FitnessTrendComponent implements OnInit, OnDestroy {
     // Find default period viewed
     const lastPeriodViewedSaved = localStorage.getItem(FitnessTrendComponent.LS_LAST_PERIOD_VIEWED_KEY);
     this.lastPeriods = FitnessTrendComponent.provideLastPeriods(this.dateMin);
-    const defaultPeriodKey = this.userSettings?.fitnessTrendDefaultPeriod ?? FitnessTrendComponent.DEFAULT_LAST_PERIOD_KEY;
+    const defaultPeriodKey =
+      this.userSettings?.fitnessTrendDefaultPeriod ?? FitnessTrendComponent.DEFAULT_LAST_PERIOD_KEY;
     this.periodViewed = _.find(this.lastPeriods, {
       key: !_.isEmpty(lastPeriodViewedSaved) ? lastPeriodViewedSaved : defaultPeriodKey
     });
@@ -481,7 +484,7 @@ export class FitnessTrendComponent implements OnInit, OnDestroy {
     const excludeTrainerPref = localStorage.getItem(FitnessTrendComponent.LS_EXCLUDE_TRAINER_FTP_KEY);
     this.excludeTrainerRides = excludeTrainerPref
       ? excludeTrainerPref === "true"
-      : (this.userSettings?.fitnessTrendDefaultExcludeIndoorTrainerFtp ?? false);
+      : this.userSettings?.fitnessTrendDefaultExcludeIndoorTrainerFtp ?? false;
 
     this.ftpEstimationService
       .computeFtpTrend(athleteWeight, 90, 7, undefined, this.excludeTrainerRides, this.fitnessTrend)

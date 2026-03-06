@@ -186,8 +186,8 @@ export class RunningThresholdGraphComponent implements OnInit, OnChanges {
       this.currentEstimate.confidenceLabel === "high"
         ? "primary"
         : this.currentEstimate.confidenceLabel === "moderate"
-        ? "accent"
-        : "warn";
+          ? "accent"
+          : "warn";
 
     const isDark = this.isDarkTheme;
     const lineColor = isDark ? "#80cbc4" : "#00897b"; // teal

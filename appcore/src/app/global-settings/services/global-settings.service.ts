@@ -31,9 +31,12 @@ export class GlobalSettingsService {
   private static readonly FITNESS_SMOOTHING_OPTIONS: ListItemModel[] = [0, 2, 3, 4, 5, 7, 10, 14, 20, 30].map(
     value => ({ key: String(value), name: value === 0 ? "None" : `${value} days` })
   );
-  private static readonly ACTIVITY_SMOOTHING_OPTIONS: ListItemModel[] = [0, 2, 5, 10, 15, 20, 30, 60, 120, 180, 300].map(
-    value => ({ key: String(value), name: value === 0 ? "None" : value < 60 ? `${value} sec` : `${value / 60} min` })
-  );
+  private static readonly ACTIVITY_SMOOTHING_OPTIONS: ListItemModel[] = [
+    0, 2, 5, 10, 15, 20, 30, 60, 120, 180, 300
+  ].map(value => ({
+    key: String(value),
+    name: value === 0 ? "None" : value < 60 ? `${value} sec` : `${value / 60} min`
+  }));
   private static readonly ACTIVITY_SCALE_OPTIONS: ListItemModel[] = [
     { key: "distance", name: "Distance" },
     { key: "time", name: "Time" }
